@@ -23,7 +23,7 @@ Pleos Connect(Android Automotive)용 AI 비서 앱입니다. 현대차·기아 �
   | 파일 | 하는 일 |
   |---|---|
   | `.github/workflows/ci.yml` | **CI**: PR 과 main 마다 빌드 · 단위 테스트 · lint, APK 첨부 |
-  | `.github/workflows/review-request.yml` | PR 본문 검사, 리뷰 준비 완료 시 다음 차례 팀원에게 리뷰 요청 |
+  | `.github/workflows/review-request.yml` | PR 본문 검사, 리뷰 준비 완료 시 덜 밀린 팀원에게 리뷰 요청(같으면 번갈아) |
   | `.github/workflows/cd.yml` | **CD**: main 이 바뀌면 `latest-main` 릴리스에 APK 갱신 |
 
 ## 개발 환경 준비 (팀원 각자 한 번)

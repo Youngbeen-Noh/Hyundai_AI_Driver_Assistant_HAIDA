@@ -1,8 +1,10 @@
 # 리뷰 요청 자동화
 #  - pr-body: PR 본문에 '요구사항'과 '완료 조건(체크박스)'이 채워져 있는지 검사한다.
 #             리뷰어 에이전트는 이 두 칸을 기준으로 검증하므로 비어 있으면 실패시킨다.
-#  - request: 초안(Draft)이 '리뷰 준비 완료'로 바뀌면, 작성자를 뺀 팀원 전원에게 리뷰를 요청한다.
-#             팀원 목록은 .github/reviewers.txt
+#  - request: 초안(Draft)이 '리뷰 준비 완료'로 바뀌면, 작성자를 뺀 팀원 중 한 명에게 리뷰를 요청한다.
+#             1) 지금 밀려 있는 리뷰가 적은 사람  2) 같으면 작성자의 직전 PR 을 리뷰하지 않은 사람(번갈아)
+#             3) 그래도 같으면 .github/reviewers.txt 에 먼저 적힌 사람
+#             로컬 시험: DRY_RUN=1 AUTHOR=<아이디> PR=<번호> GITHUB_REPOSITORY=<owner/repo> 로 run 블록 실행
 name: 리뷰 요청
 
 on:
@@ -49,33 +51,43 @@ jobs:
         with:
           sparse-checkout: .github
 
-      # reviewers.txt 순서대로 돌아가며 맡는다: 1번 PR → 2번이 리뷰, 2번 → 3번, 3번 → 1번.
-      # 작성자가 목록에 없으면 목록 전원에게 요청한다.
-      - name: 다음 차례 팀원에게 리뷰 요청
+      - name: 덜 밀린 팀원에게 리뷰 요청 (같으면 번갈아)
         env:
           GH_TOKEN: ${{ github.token }}
           AUTHOR: ${{ github.event.pull_request.user.login }}
           PR: ${{ github.event.pull_request.number }}
         run: |
-          mapfile -t ids < <(sed -e 's/#.*//' -e 's/[[:space:]]//g' .github/reviewers.txt | grep -v '^$' || true)
-          n=${#ids[@]}
-          if [ "$n" -eq 0 ]; then
-            echo "::warning::.github/reviewers.txt 에 팀원 아이디가 없어요."; exit 0
-          fi
           author="${AUTHOR,,}"
-          reviewers=()
-          for i in "${!ids[@]}"; do
-            if [ "${ids[$i],,}" = "$author" ]; then
-              next="${ids[$(( (i + 1) % n ))]}"
-              if [ "${next,,}" != "$author" ]; then reviewers=("$next"); fi
+          cands=()
+          while IFS= read -r id; do
+            if [ -z "$id" ]; then continue; fi
+            if ! [[ "$id" =~ ^[A-Za-z0-9-]+$ ]]; then echo "::warning::아이디 형식이 이상해서 건너뜀: $id"; continue; fi
+            if [ "${id,,}" != "$author" ]; then cands+=("$id"); fi
+          done < <(sed -e 's/#.*//' -e 's/[[:space:]]//g' .github/reviewers.txt)
+          if [ ${#cands[@]} -eq 0 ]; then
+            echo "::warning::.github/reviewers.txt 에 작성자 말고 다른 팀원이 없어요."; exit 0
+          fi
+
+          # 열린 PR 에서 리뷰를 기다리는 사람들 (이 PR 은 뺀다), 작성자의 직전 PR 리뷰어
+          pending="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --limit 200 \
+            --json number,reviewRequests \
+            --jq "[.[] | select(.number != $PR) | .reviewRequests[]?.login | select(. != null) | ascii_downcase] | join(\" \")")"
+          last="$(gh pr list --repo "$GITHUB_REPOSITORY" --author "$AUTHOR" --state all --limit 30 \
+            --json number,reviewRequests,latestReviews \
+            --jq "[.[] | select(.number < $PR)] | max_by(.number) | if . == null then \"\" else ([.reviewRequests[]?.login, .latestReviews[]?.author.login] | map(select(. != null) | ascii_downcase) | unique | join(\" \")) end")"
+          echo "대기 중 리뷰: [${pending}] / 직전 PR 리뷰어: [${last}]"
+
+          best=""; best_load=999999; best_recent=1
+          for c in "${cands[@]}"; do
+            lc="${c,,}"; load=0; recent=0
+            for x in $pending; do if [ "$x" = "$lc" ]; then load=$((load + 1)); fi; done
+            for x in $last; do if [ "$x" = "$lc" ]; then recent=1; fi; done
+            echo "  ${c}: 대기 ${load}건, 직전 리뷰어 ${recent}"
+            if [ "$load" -lt "$best_load" ] || { [ "$load" -eq "$best_load" ] && [ "$recent" -lt "$best_recent" ]; }; then
+              best="$c"; best_load=$load; best_recent=$recent
             fi
           done
-          if [ ${#reviewers[@]} -eq 0 ]; then
-            for id in "${ids[@]}"; do
-              if [ "${id,,}" != "$author" ]; then reviewers+=("$id"); fi
-            done
-          fi
-          args=()
-          for id in "${reviewers[@]}"; do args+=(-f "reviewers[]=$id"); done
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/pulls/${PR}/requested_reviewers" "${args[@]}" > /dev/null
-          echo "리뷰 요청 보냄: ${reviewers[*]}"
+
+          if [ -n "${DRY_RUN:-}" ]; then echo "DRY_RUN → ${best}"; exit 0; fi
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/pulls/${PR}/requested_reviewers" -f "reviewers[]=${best}" > /dev/null
+          echo "리뷰 요청 보냄: ${best}"
