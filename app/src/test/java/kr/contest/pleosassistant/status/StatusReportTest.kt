@@ -128,6 +128,24 @@ class StatusReportTest {
     }
 
     @Test
+    fun `전체 상태는 가장 심각한 문제를 따른다`() {
+        assertEquals(StatusLevel.OK, buildStatusReport(allGood).overall)
+        assertEquals(StatusLevel.CAUTION, buildStatusReport(allGood.copy(washerFluidLow = Reading.Value(true))).overall)
+        assertEquals(
+            StatusLevel.URGENT,
+            buildStatusReport(allGood.copy(washerFluidLow = Reading.Value(true), fuelPercent = Reading.Value(5))).overall,
+        )
+        assertEquals(StatusLevel.LOADING, buildStatusReport(VehicleSnapshot()).overall)
+    }
+
+    @Test
+    fun `잔량 카드는 막대 값을 가진다`() {
+        val report = buildStatusReport(allGood.copy(fuelPercent = Reading.Value(15)))
+        assertEquals(0.15f, report.item(StatusItemId.FUEL).gauge!!, 0.0001f)
+        assertNull(report.item(StatusItemId.ODOMETER).gauge)
+    }
+
+    @Test
     fun `읽기에 실패한 항목은 확인 불가, 아무것도 못 읽으면 그렇게 말한다`() {
         val failed = VehicleSnapshot(
             engineOil = Reading.Unavailable,

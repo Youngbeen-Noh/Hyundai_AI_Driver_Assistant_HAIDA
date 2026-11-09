@@ -20,6 +20,7 @@ enum class StatusItemId { ENGINE_OIL, TRANSMISSION_OIL, BRAKE_FLUID, WASHER_FLUI
  * 화면 카드 하나.
  * @param detail 카드에 보이는 짧은 값 ("부족", "15%")
  * @param advice 주의 · 즉시 조치일 때 말할 문장. 요약 문장에 그대로 들어간다.
+ * @param gauge 잔량처럼 막대로 보여 줄 값(0..1). 없으면 null.
  */
 data class StatusItem(
     val id: StatusItemId,
@@ -27,13 +28,26 @@ data class StatusItem(
     val level: StatusLevel,
     val detail: String,
     val advice: String? = null,
+    val gauge: Float? = null,
 )
 
 /** 화면이 그리는 전부. UI 템플릿이 바뀌어도 이 형태는 유지한다. */
 data class StatusReport(
     val summary: String,
     val items: List<StatusItem>,
-)
+) {
+    /** 요약 배너 색에 쓰는 전체 상태: 가장 심각한 문제 → 아직 읽는 중 → 못 읽음 → 정상 */
+    val overall: StatusLevel
+        get() {
+            val readable = items.filter { it.level != StatusLevel.UNSUPPORTED }
+            readable.maxByOrNull { it.level.severity }?.takeIf { it.level.severity > 0 }?.let { return it.level }
+            return when {
+                readable.any { it.level == StatusLevel.LOADING } -> StatusLevel.LOADING
+                readable.isEmpty() || readable.all { it.level == StatusLevel.UNKNOWN } -> StatusLevel.UNKNOWN
+                else -> StatusLevel.OK
+            }
+        }
+}
 
 /** 기능 1 분류 기준 (docs/기능계획서.pdf 3장). 시범 주행 후 조정할 수 있게 한곳에 둔다. */
 object StatusRules {
@@ -148,13 +162,14 @@ private fun energyItem(id: StatusItemId, title: String, reading: Reading<Int>, r
     notReadyItem(id, title, reading)?.let { return it }
     val percent = (reading as Reading.Value).value
     val detail = "$percent%"
+    val gauge = (percent / 100f).coerceIn(0f, 1f)
     val place = if (refill == "주유") "주유소" else "충전소"
     return when {
         percent <= StatusRules.ENERGY_URGENT_PERCENT ->
-            StatusItem(id, title, StatusLevel.URGENT, detail, "${title}가 ${percent}% 남았어요. 바로 ${refill}하세요.")
+            StatusItem(id, title, StatusLevel.URGENT, detail, "${title}가 ${percent}% 남았어요. 바로 ${refill}하세요.", gauge)
         percent <= StatusRules.ENERGY_CAUTION_PERCENT ->
-            StatusItem(id, title, StatusLevel.CAUTION, detail, "${title}가 ${percent}% 남았어요. 가까운 ${place}에 들르세요.")
-        else -> StatusItem(id, title, StatusLevel.OK, detail)
+            StatusItem(id, title, StatusLevel.CAUTION, detail, "${title}가 ${percent}% 남았어요. 가까운 ${place}에 들르세요.", gauge)
+        else -> StatusItem(id, title, StatusLevel.OK, detail, gauge = gauge)
     }
 }
 

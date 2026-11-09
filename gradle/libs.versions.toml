@@ -36,6 +36,8 @@ androidx-ui = { group = "androidx.compose.ui", name = "ui" }
 androidx-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
 androidx-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
 androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
+# 카드 아이콘. 라이브러리가 커서, 제출용 릴리스 빌드는 minify(R8)를 켜 안 쓰는 아이콘을 빼야 한다.
+androidx-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
 
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 
