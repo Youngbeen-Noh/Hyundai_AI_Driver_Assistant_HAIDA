@@ -6,7 +6,16 @@
         android:name="android.hardware.type.automotive"
         android:required="true" />
 
+    <!-- Pleos 차량 조회 권한 (기능계획서 9장: 필요한 읽기 권한만 신청) -->
+    <!-- 기능 1: 오일 · 브레이크액 · 워셔액 -->
+    <uses-permission android:name="pleos.car.permission.CAR_SAFETY" />
+    <!-- 기능 1: 연료 · 배터리 잔량 -->
+    <uses-permission android:name="pleos.car.permission.CAR_ENERGY" />
+    <!-- 기능 1: 누적 주행거리 -->
+    <uses-permission android:name="pleos.car.permission.CAR_DRIVE" />
+
     <application
+        android:name=".HaidaApplication"
         android:allowBackup="false"
         android:icon="@drawable/ic_launcher"
         android:label="@string/app_name"

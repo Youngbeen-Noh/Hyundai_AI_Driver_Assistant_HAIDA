@@ -46,6 +46,7 @@ android {
 dependencies {
     // Pleos Connect SDK (신청 없이 사용 가능)
     implementation(libs.pleos.vehicle)
+    implementation(libs.pleos.vehicle.data)
     implementation(libs.pleos.navihelper)
     // 준비 중 SDK — 승인 후 주석 해제
     // implementation(libs.pleos.tts)
@@ -54,6 +55,8 @@ dependencies {
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.tooling.preview)
