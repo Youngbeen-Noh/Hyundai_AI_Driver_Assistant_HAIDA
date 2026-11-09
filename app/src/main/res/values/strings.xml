@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- TODO: 앱 이름 확정 후 변경 (기능계획서 12장: 옆자리 추천) -->
+    <string name="app_name">Pleos AI 비서</string>
+</resources>

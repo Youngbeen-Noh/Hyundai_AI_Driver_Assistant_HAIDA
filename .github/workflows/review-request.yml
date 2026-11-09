@@ -1,0 +1,81 @@
+# 리뷰 요청 자동화
+#  - pr-body: PR 본문에 '요구사항'과 '완료 조건(체크박스)'이 채워져 있는지 검사한다.
+#             리뷰어 에이전트는 이 두 칸을 기준으로 검증하므로 비어 있으면 실패시킨다.
+#  - request: 초안(Draft)이 '리뷰 준비 완료'로 바뀌면, 작성자를 뺀 팀원 전원에게 리뷰를 요청한다.
+#             팀원 목록은 .github/reviewers.txt
+name: 리뷰 요청
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review, edited, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  pr-body:
+    name: pr-body
+    runs-on: ubuntu-latest
+    steps:
+      - name: PR 본문 검사 (요구사항 · 완료 조건)
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+        run: |
+          section() {
+            printf '%s\n' "$BODY" | tr -d '\r' \
+              | awk -v h="## $1" '/^## / { on = (index($0, h) == 1); next } on' \
+              | sed -e 's/<!--.*-->//g' | grep -v '^[[:space:]]*$' || true
+          }
+          ok=1
+          if [ -z "$(section '요구사항')" ]; then
+            echo "::error::PR 본문의 '## 요구사항' 칸이 비어 있어요."; ok=0
+          fi
+          if [ -z "$(section '완료 조건' | grep -E '^[[:space:]]*- \[[ xX]\][[:space:]]+[^[:space:]]' || true)" ]; then
+            echo "::error::PR 본문의 '## 완료 조건' 에 '- [ ] 확인할 동작' 형식의 항목이 하나 이상 있어야 해요."; ok=0
+          fi
+          [ "$ok" = 1 ] && echo "PR 본문 OK"
+          [ "$ok" = 1 ]
+
+  request:
+    name: request
+    needs: pr-body
+    if: >-
+      github.event.pull_request.draft == false &&
+      contains(fromJSON('["opened","reopened","ready_for_review"]'), github.event.action)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github
+
+      # reviewers.txt 순서대로 돌아가며 맡는다: 1번 PR → 2번이 리뷰, 2번 → 3번, 3번 → 1번.
+      # 작성자가 목록에 없으면 목록 전원에게 요청한다.
+      - name: 다음 차례 팀원에게 리뷰 요청
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          mapfile -t ids < <(sed -e 's/#.*//' -e 's/[[:space:]]//g' .github/reviewers.txt | grep -v '^$' || true)
+          n=${#ids[@]}
+          if [ "$n" -eq 0 ]; then
+            echo "::warning::.github/reviewers.txt 에 팀원 아이디가 없어요."; exit 0
+          fi
+          author="${AUTHOR,,}"
+          reviewers=()
+          for i in "${!ids[@]}"; do
+            if [ "${ids[$i],,}" = "$author" ]; then
+              next="${ids[$(( (i + 1) % n ))]}"
+              if [ "${next,,}" != "$author" ]; then reviewers=("$next"); fi
+            fi
+          done
+          if [ ${#reviewers[@]} -eq 0 ]; then
+            for id in "${ids[@]}"; do
+              if [ "${id,,}" != "$author" ]; then reviewers+=("$id"); fi
+            done
+          fi
+          args=()
+          for id in "${reviewers[@]}"; do args+=(-f "reviewers[]=$id"); done
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/pulls/${PR}/requested_reviewers" "${args[@]}" > /dev/null
+          echo "리뷰 요청 보냄: ${reviewers[*]}"

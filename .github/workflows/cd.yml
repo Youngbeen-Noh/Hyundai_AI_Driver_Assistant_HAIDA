@@ -1,0 +1,50 @@
+# CD: main 에 PR 이 합쳐질 때마다 디버그 APK 를 만들어 'latest-main' 릴리스로 올린다.
+# 팀원은 언제든 이 APK 로 최신 main 을 에뮬레이터에 설치할 수 있다.
+#   gh release download latest-main -p "*.apk" --clobber
+#   adb install -r app-debug-*.apk
+# 앱마켓 제출용 서명 빌드는 여기서 하지 않는다(제출 직전에 따로 정한다).
+name: CD
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: cd-main
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      - name: 디버그 APK 빌드
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: latest-main 릴리스 갱신
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          short="${GITHUB_SHA::7}"
+          apk="app-debug-${short}.apk"
+          cp app/build/outputs/apk/debug/app-debug.apk "$apk"
+          gh release delete latest-main --cleanup-tag --yes || true
+          gh release create latest-main "$apk" \
+            --prerelease \
+            --target "$GITHUB_SHA" \
+            --title "main 최신 빌드 (${short})" \
+            --notes "main 에 합쳐진 최신 코드(${short})로 자동 빌드한 디버그 APK 입니다."

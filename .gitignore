@@ -1,0 +1,22 @@
+# Gradle / Android
+.gradle/
+.kotlin/
+build/
+/local.properties
+/captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+
+# IDE
+*.iml
+/.idea/
+.DS_Store
+
+# 개인 설정 · 비밀 값 (git 에 올리지 않는다)
+/CLAUDE.local.md
+/.claude/settings.local.json
+/secrets.properties
+*.jks
+*.keystore

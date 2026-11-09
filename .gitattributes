@@ -1,0 +1,10 @@
+# 줄바꿈: 저장소에는 LF 로 저장한다. CI(리눅스)에서 gradlew 와 훅이 돌아야 한다.
+* text=auto eol=lf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+gradlew text eol=lf
+.githooks/* text eol=lf
+
+*.jar binary
+*.png binary
+*.pdf binary
