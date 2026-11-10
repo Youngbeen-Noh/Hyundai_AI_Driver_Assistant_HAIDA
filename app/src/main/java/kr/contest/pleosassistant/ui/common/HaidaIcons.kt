@@ -65,6 +65,7 @@ object HaidaIcons {
     val Unknown by lazy {
         icon("unknown", dashedCircle(12f, 12f, 9f), "M9.6 9.6a2.5 2.5 0 1 1 3.4 2.3c-.7.4-1 .8-1 1.6", circle(12f, 16.6f, 0.5f))
     }
+    val Pin by lazy { icon("pin", "M12 21s6.5-5.6 6.5-11a6.5 6.5 0 0 0-13 0c0 5.4 6.5 11 6.5 11z", "M12 7.6v3.4", circle(12f, 13.2f, 0.6f)) }
     val Clock by lazy { icon("clock", circle(12f, 12f, 8.5f), "M12 7.5V12l3 2") }
     val Chevron by lazy { icon("chevron", "m9 5 7 7-7 7") }
     val ChevronDown by lazy { icon("chevron-down", "m5 9 7 7 7-7") }

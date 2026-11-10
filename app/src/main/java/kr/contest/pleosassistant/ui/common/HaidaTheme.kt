@@ -13,12 +13,14 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import java.io.File
 
-// 팀 UI 프로토타입(haida.html, 2026-11-10)의 디자인 토큰을 옮겼다. 새 화면도 여기 값만 쓴다.
-// 프로토타입 기준 화면은 1920 × 720 (앱 창 1440 × 656) 이고, px 값을 dp · sp 로 1:1 옮겼다.
+// 팀 UI 프로토타입(haida.html 수정본, 2026-11-10)의 디자인 토큰을 옮겼다. 새 화면도 여기 값만 쓴다.
+// 프로토타입은 Pleos 에뮬레이터 화면(2560 × 1440, 앱 창 1682 × 1210, 본문 1474 × 1110) 기준이고 px 를 dp · sp 로 1:1 옮겼다.
+// Pleos 톤: 그림자 · 그라데이션 없이 평면, 작은 모서리(8 · 12 · 16), 가는 선(1).
 
 /** 프로토타입 CSS 변수 이름을 그대로 따른다. L0 = 앱 바탕, L1 = 카드, L2 · L3 = 카드 안 면 */
 @Immutable
@@ -61,7 +63,7 @@ val DayColors = HaidaColors(
     l3 = Color(0xFFE9EEF3),
     line = Color(0x1C121A24),
     line2 = Color(0x2E121A24),
-    cardLine = Color(0x12121A24),
+    cardLine = Color(0x1C121A24),
     t1 = Color(0xFF10151B),
     t2 = Color(0xFF3F4752),
     t3 = Color(0xFF4C5560),
@@ -91,7 +93,7 @@ val NightColors = HaidaColors(
     l3 = Color(0xFF252A30),
     line = Color(0x17FFFFFF),
     line2 = Color(0x29FFFFFF),
-    cardLine = Color(0x17FFFFFF),
+    cardLine = Color(0x29FFFFFF),
     t1 = Color(0xFFEDF0F3),
     t2 = Color(0xFFBCC3CC),
     t3 = Color(0xFF9AA2AC),
@@ -135,26 +137,37 @@ val HaidaFont: FontFamily by lazy {
 
 /** 글자 크기 단계 (프로토타입 --f-hero · --f-t · --f-b · --f-s). Text(style = …) 는 바깥 글꼴을 물려받지 않아 글꼴을 함께 넣는다. */
 object HaidaType {
+    // 프로토타입의 word-break: keep-all · text-wrap: balance 처럼 낱말 중간에서 줄을 바꾸지 않고 줄 길이를 고르게 한다
+    private val KeepWords = LineBreak(LineBreak.Strategy.Balanced, LineBreak.Strictness.Normal, LineBreak.WordBreak.Phrase)
+
     private fun style(size: Int, weight: FontWeight, line: Int, spacing: Double = 0.0) = TextStyle(
         fontFamily = HaidaFont,
         fontSize = size.sp,
         fontWeight = weight,
         lineHeight = line.sp,
         letterSpacing = spacing.em,
+        lineBreak = KeepWords,
     )
 
-    val hero = style(52, FontWeight.Bold, 62, -0.03)
+    val hero = style(52, FontWeight.SemiBold, 62, -0.03)
 
-    /** 차량 상태 · 동승자 화면의 큰 한 문장 */
-    val sentence = style(44, FontWeight.Bold, 54, -0.03)
-    val h1 = style(34, FontWeight.Bold, 42, -0.02)
-    val title = style(32, FontWeight.Bold, 40, -0.02)
+    /** 카드 안 큰 한 문장(.t-hero 44) */
+    val sentence = style(44, FontWeight.SemiBold, 53, -0.03)
+
+    /** 차량 상태 요약 문장(40, 줄 간격 1.3) */
+    val carSentence = style(40, FontWeight.SemiBold, 52, -0.03)
+    val h1 = style(34, FontWeight.SemiBold, 42, -0.02)
+    val title = style(32, FontWeight.SemiBold, 40, -0.02)
     val bodyBold = style(28, FontWeight.Bold, 35, -0.02)
     val bodySemi = style(28, FontWeight.SemiBold, 35, -0.02)
-    val body = style(28, FontWeight.Medium, 40)
-    val smallBold = style(24, FontWeight.Bold, 30, -0.01)
-    val small = style(24, FontWeight.Medium, 31)
-    val eyebrow = style(24, FontWeight.SemiBold, 31, -0.01)
+    val body = style(28, FontWeight.Normal, 40)
+    val smallBold = style(24, FontWeight.Bold, 31, -0.01)
+    val smallSemi = style(24, FontWeight.SemiBold, 30, -0.01)
+    val small = style(24, FontWeight.Normal, 31)
+    val eyebrow = style(24, FontWeight.Medium, 31, -0.01)
+
+    /** 상태별 개수(.cs-n 72) */
+    val count = style(72, FontWeight.Bold, 72, -0.02)
 }
 
 /** 앱 전체를 감싼다. 차량이 야간 모드면 야간 색을 쓴다. */

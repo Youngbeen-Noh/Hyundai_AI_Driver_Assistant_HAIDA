@@ -2,13 +2,12 @@ package kr.contest.pleosassistant.ui
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -39,7 +38,7 @@ import kr.contest.pleosassistant.ui.common.HaidaIcons
 import kr.contest.pleosassistant.ui.common.HaidaType
 import kr.contest.pleosassistant.ui.status.VehicleStatusScreen
 
-// 앱 틀: 팀 UI 프로토타입의 왼쪽 메뉴(.dock, 너비 128)와 화면 영역(.main).
+// 앱 틀: 팀 UI 프로토타입의 왼쪽 메뉴(.dock, 너비 128, 브랜드 연한 색)와 화면 영역(.main).
 // 다른 기능 화면은 Destination 에 한 줄 추가하고 when 에 화면을 넣는다.
 
 private enum class Destination(val label: String, val icon: ImageVector) {
@@ -59,7 +58,8 @@ fun HaidaApp(status: StatusReport) {
         )
         Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
             when (current) {
-                Destination.CAR -> VehicleStatusScreen(status)
+                // 변속 단(주행 중 화면)은 기능 2 PR 에서 CabinSource 로 연결한다
+                Destination.CAR -> VehicleStatusScreen(status, driving = false)
             }
         }
     }
@@ -73,32 +73,34 @@ private fun Dock(current: Destination, badge: (Destination) -> Boolean, onSelect
         modifier = Modifier
             .width(128.dp)
             .fillMaxHeight()
-            .background(c.l1)
-            .drawBehind { drawLine(c.line, Offset(size.width, 0f), Offset(size.width, size.height), strokeWidth = 1.dp.toPx()) }
-            .padding(top = 14.dp, bottom = 16.dp),
+            .background(c.acSoft)
+            .padding(vertical = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Image(rememberVectorPainter(logo), contentDescription = "HAIDA", modifier = Modifier.padding(bottom = 10.dp).size(56.dp))
+        Image(rememberVectorPainter(logo), contentDescription = "HAIDA", modifier = Modifier.size(56.dp))
+        // 메뉴는 세로 가운데에 모은다
+        Spacer(Modifier.weight(1f))
         Destination.entries.forEach { dest ->
             DockItem(dest, selected = dest == current, badge = dest != current && badge(dest), onClick = { onSelect(dest) })
         }
+        Spacer(Modifier.weight(1f))
     }
 }
 
 @Composable
 private fun DockItem(dest: Destination, selected: Boolean, badge: Boolean, onClick: () -> Unit) {
     val c = Haida.colors
-    val color = if (selected) c.ac else c.t3
+    val color = if (selected) c.ac else c.t2
     Column(
         modifier = Modifier
-            .width(100.dp)
-            .height(92.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .background(if (selected) c.acSoft else c.l1)
+            .width(104.dp)
+            .height(120.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (selected) c.l1 else c.acSoft)
             .clickable(role = Role.Tab, onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically),
+        verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
     ) {
         Box {
             Icon(dest.icon, contentDescription = null, tint = color, modifier = Modifier.size(38.dp))
@@ -109,13 +111,13 @@ private fun DockItem(dest: Destination, selected: Boolean, badge: Boolean, onCli
                         .offset(x = 8.dp, y = (-4).dp)
                         .size(14.dp)
                         .clip(CircleShape)
-                        .background(c.l1)
+                        .background(c.acSoft)
                         .padding(2.dp)
                         .clip(CircleShape)
                         .background(c.warnFill),
                 )
             }
         }
-        Text(dest.label, style = HaidaType.eyebrow, color = color)
+        Text(dest.label, style = if (selected) HaidaType.smallSemi else HaidaType.eyebrow, color = color)
     }
 }
