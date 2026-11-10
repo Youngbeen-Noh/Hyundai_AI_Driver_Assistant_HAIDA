@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -52,6 +53,7 @@ interface MusicActions {
  * 분위기 신호(시계 · 날씨 · 와이퍼 · 전조등 · 디버그 덮어쓰기) → [MusicState] → 음악 앱 재생 · 비서 음성.
  * 분위기가 바뀌면 비서가 한 번 말하고("비가 와서 촉촉한 빗길로 골랐어요."), 곡이 바뀌면 음악 앱에 재생을 요청한다.
  */
+@OptIn(kotlinx.coroutines.FlowPreview::class)
 class MusicViewModel(
     private val exterior: ExteriorSource,
     private val weatherSource: WeatherSource,
@@ -98,7 +100,9 @@ class MusicViewModel(
                 MusicTestSignals.hour, MusicTestSignals.weather, MusicTestSignals.wipersOn,
                 MusicTestSignals.headlightsOn, MusicTestSignals.etaDelayMin,
             ) { h, w, wp, hl, eta -> listOf(h, w, wp, hl, eta) }
+            // 신호 여러 개가 거의 같이 바뀌면(와이퍼 끄고 전조등 켬) 중간 분위기를 말하지 않게 잠깐 모은다
             combine(hour, weather, vehicle, overrides) { _, _, _, _ -> currentSignals() }
+                .debounce(SIGNAL_SETTLE_MS)
                 .distinctUntilChanged()
                 .collect { signals -> state.update { it.withSignals(signals) } }
         }
@@ -171,5 +175,8 @@ class MusicViewModel(
         speaker.release()
     }
 }
+
+/** 신호가 바뀐 뒤 이만큼 더 바뀌지 않으면 분위기를 다시 정한다 */
+private const val SIGNAL_SETTLE_MS = 800L
 
 private fun <T> Reading<T>.valueOrNull(): T? = (this as? Reading.Value<T>)?.value
