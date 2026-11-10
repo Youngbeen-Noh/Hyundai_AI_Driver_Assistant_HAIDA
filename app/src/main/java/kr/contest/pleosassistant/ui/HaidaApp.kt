@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material3.Icon
@@ -32,6 +33,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kr.contest.pleosassistant.drive.DriveReport
 import kr.contest.pleosassistant.hazard.HazardReport
 import kr.contest.pleosassistant.memory.MemoryReport
 import kr.contest.pleosassistant.status.StatusReport
@@ -42,6 +44,9 @@ import kr.contest.pleosassistant.ui.hazard.HazardScreen
 import kr.contest.pleosassistant.ui.memory.ArrivalDialog
 import kr.contest.pleosassistant.ui.memory.MemoryActions
 import kr.contest.pleosassistant.ui.memory.MemoryScreen
+import kr.contest.pleosassistant.ui.report.DriveActions
+import kr.contest.pleosassistant.ui.report.ReportScreen
+import kr.contest.pleosassistant.ui.report.TripFinishedDialog
 import kr.contest.pleosassistant.ui.status.VehicleStatusScreen
 
 // 임시 디자인. 팀 UI 템플릿을 받으면 화면 이동 방식과 함께 바꾼다.
@@ -50,6 +55,7 @@ private enum class Destination(val label: String, val icon: ImageVector) {
     STATUS("차량 요약", Icons.Filled.DirectionsCar),
     MEMORY("기억", Icons.Filled.People),
     HAZARD("위험 구간", Icons.Filled.Place),
+    REPORT("리포트", Icons.Filled.Insights),
 }
 
 /** 왼쪽 메뉴로 기능 화면을 오간다. 하차 알림은 어느 화면에 있든 위에 뜬다. */
@@ -60,6 +66,8 @@ fun HaidaApp(
     memoryActions: MemoryActions,
     hazard: HazardReport,
     hazardActions: HazardActions,
+    drive: DriveReport,
+    driveActions: DriveActions,
 ) {
     var current by rememberSaveable { mutableStateOf(Destination.STATUS) }
 
@@ -88,10 +96,13 @@ fun HaidaApp(
                 Destination.STATUS -> VehicleStatusScreen(status)
                 Destination.MEMORY -> MemoryScreen(memory, memoryActions)
                 Destination.HAZARD -> HazardScreen(hazard, hazardActions)
+                Destination.REPORT -> ReportScreen(drive)
             }
         }
     }
 
+    // 하차하면 주행 점수 → 그 위에 챙길 것 알림(물건을 먼저 챙기게) → 맨 위는 위험 구간 경고
+    drive.finished?.let { TripFinishedDialog(it, drive.finishedMessage.orEmpty(), driveActions) }
     memory.arrivalMessage?.let { ArrivalDialog(it, memoryActions) }
     // 위험 구간 경고가 하차 알림보다 먼저다(기능계획서 9장 '말하는 순서')
     hazard.alert?.let { HazardAlertDialog(it, hazardActions) }

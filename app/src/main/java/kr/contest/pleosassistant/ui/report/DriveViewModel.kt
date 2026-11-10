@@ -1,0 +1,80 @@
+package kr.contest.pleosassistant.ui.report
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kr.contest.pleosassistant.drive.DriveReport
+import kr.contest.pleosassistant.drive.DriveState
+import kr.contest.pleosassistant.drive.DriveStore
+import kr.contest.pleosassistant.drive.buildDriveReport
+import kr.contest.pleosassistant.drive.dismissFinished
+import kr.contest.pleosassistant.drive.onGear
+import kr.contest.pleosassistant.drive.onSpeed
+import kr.contest.pleosassistant.vehicle.CabinSource
+import kr.contest.pleosassistant.vehicle.SpeedSource
+import java.time.LocalDateTime
+
+/** 화면에서 누르는 것들 */
+interface DriveActions {
+    fun dismissFinished()
+}
+
+/**
+ * 기능 5 · 주행 리포트. 하차 리포트가 어느 탭에서든 뜨도록 Activity 범위로 둔다.
+ * 변속 단 · 차속 신호를 [DriveState] 로 흘려 보내고, 주행 기록(data)이 바뀔 때마다 기기 안에 저장한다.
+ */
+class DriveViewModel(
+    private val speed: SpeedSource,
+    private val cabin: CabinSource,
+    private val store: DriveStore,
+    private val now: () -> LocalDateTime = LocalDateTime::now,
+) : ViewModel(), DriveActions {
+
+    private val state = MutableStateFlow(DriveState(data = store.load()))
+
+    /** 주행 중 '○분' 표시가 흐르도록 30초마다 다시 만든다 */
+    private val tick = flow {
+        while (true) {
+            emit(Unit)
+            delay(30_000)
+        }
+    }
+
+    val report: StateFlow<DriveReport> = combine(state, tick, speed.status) { s, _, sp -> buildDriveReport(s, now(), sp) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, buildDriveReport(state.value, now(), speed.status.value))
+
+    init {
+        viewModelScope.launch {
+            cabin.gear.collect { reading -> state.update { it.onGear(reading, now()) } }
+        }
+        viewModelScope.launch {
+            speed.samples.collect { s -> state.update { it.onSpeed(s.kmh, s.t, now()) } }
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            state.map { it.data }.distinctUntilChanged().drop(1).collect(store::save)
+        }
+        speed.start()
+        cabin.start()
+    }
+
+    /** 차속 권한을 받은 뒤 다시 시작한다 */
+    fun onSpeedPermissionResult() = speed.start()
+
+    override fun dismissFinished() = state.update { it.dismissFinished() }
+
+    override fun onCleared() {
+        speed.stop()
+    }
+}

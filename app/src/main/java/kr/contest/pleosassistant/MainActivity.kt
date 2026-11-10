@@ -13,13 +13,16 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import kr.contest.pleosassistant.storage.FileDriveStore
 import kr.contest.pleosassistant.storage.FileHazardStore
 import kr.contest.pleosassistant.storage.FileMemoryStore
 import kr.contest.pleosassistant.ui.HaidaApp
 import kr.contest.pleosassistant.ui.hazard.HazardViewModel
 import kr.contest.pleosassistant.ui.memory.MemoryViewModel
+import kr.contest.pleosassistant.ui.report.DriveViewModel
 import kr.contest.pleosassistant.ui.status.VehicleStatusViewModel
 import kr.contest.pleosassistant.vehicle.AndroidLocationSource
+import kr.contest.pleosassistant.vehicle.CarSpeedSource
 import kr.contest.pleosassistant.vehicle.PleosCabinSource
 import kr.contest.pleosassistant.vehicle.PleosVehicleStatusSource
 import java.io.File
@@ -60,22 +63,37 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private val locationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
+    private val driveViewModel: DriveViewModel by viewModels {
+        viewModelFactory {
+            initializer {
+                DriveViewModel(
+                    speed = CarSpeedSource(haida),
+                    cabin = cabin,
+                    store = FileDriveStore(File(haida.noBackupFilesDir, "drive.json")),
+                )
+            }
+        }
+    }
+
+    /** 실행 중에 받아야 하는 권한: 위치(기능 6), 차속(기능 5) */
+    private val runtimePermissions = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         hazardViewModel.onLocationPermissionResult()
+        driveViewModel.onSpeedPermissionResult()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-            locationPermission.launch(Manifest.permission.ACCESS_FINE_LOCATION)
-        }
+        val missing = listOf(Manifest.permission.ACCESS_FINE_LOCATION, CarSpeedSource.PERMISSION)
+            .filter { checkSelfPermission(it) != android.content.pm.PackageManager.PERMISSION_GRANTED }
+        if (missing.isNotEmpty()) runtimePermissions.launch(missing.toTypedArray())
         setContent {
             MaterialTheme(colorScheme = darkColorScheme()) {
                 Surface {
                     val report by statusViewModel.report.collectAsStateWithLifecycle()
                     val memory by memoryViewModel.report.collectAsStateWithLifecycle()
                     val hazard by hazardViewModel.report.collectAsStateWithLifecycle()
-                    HaidaApp(report, memory, memoryViewModel, hazard, hazardViewModel)
+                    val drive by driveViewModel.report.collectAsStateWithLifecycle()
+                    HaidaApp(report, memory, memoryViewModel, hazard, hazardViewModel, drive, driveViewModel)
                 }
             }
         }
