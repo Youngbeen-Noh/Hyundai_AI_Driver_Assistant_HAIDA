@@ -1,329 +1,295 @@
 package kr.contest.pleosassistant.ui.status
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Battery0Bar
-import androidx.compose.material.icons.filled.Battery2Bar
-import androidx.compose.material.icons.filled.Battery4Bar
-import androidx.compose.material.icons.filled.Battery6Bar
-import androidx.compose.material.icons.filled.BatteryFull
-import androidx.compose.material.icons.filled.BatteryStd
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.DirectionsCar
-import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.filled.EvStation
-import androidx.compose.material.icons.filled.HourglassTop
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.LocalGasStation
-import androidx.compose.material.icons.filled.OilBarrel
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Speed
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.filled.WaterDrop
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.graphics.vector.path
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import kr.contest.pleosassistant.R
 import kr.contest.pleosassistant.status.StatusItem
 import kr.contest.pleosassistant.status.StatusItemId
 import kr.contest.pleosassistant.status.StatusLevel
 import kr.contest.pleosassistant.status.StatusReport
+import kr.contest.pleosassistant.ui.common.Haida
+import kr.contest.pleosassistant.ui.common.HaidaCard
+import kr.contest.pleosassistant.ui.common.HaidaIcons
+import kr.contest.pleosassistant.ui.common.HaidaType
+import kr.contest.pleosassistant.ui.common.IconTile
+import kr.contest.pleosassistant.ui.common.LevelBar
+import kr.contest.pleosassistant.ui.common.PillTone
+import kr.contest.pleosassistant.ui.common.ScreenHeader
+import kr.contest.pleosassistant.ui.common.Separator
+import kr.contest.pleosassistant.ui.common.StatusPill
+import kr.contest.pleosassistant.ui.common.TileTone
 
-// 임시 디자인. 팀 UI 템플릿을 받으면 이 파일만 바꾼다(StatusReport 는 그대로).
-// 크기는 Pleos 에뮬레이터 앱 영역(약 1680 × 1210dp, 160dpi)에서 정차 중 한눈에 읽히도록 잡았다.
-
-private object Palette {
-    val background = Color(0xFF0E1116)
-    val card = Color(0xFF181C23)
-    val cardBorder = Color(0xFF262B34)
-    val text = Color(0xFFF2F4F7)
-    val textMuted = Color(0xFF9AA3AF)
-    val accent = Color(0xFF6EA8FE)
-    val ok = Color(0xFF3DD68C)
-    val caution = Color(0xFFFFB020)
-    val urgent = Color(0xFFFF5A52)
-    val neutral = Color(0xFF7D8590)
-}
-
-private val CardShape = RoundedCornerShape(28.dp)
+// 팀 UI 프로토타입의 '차량 상태' 화면: 상태 알약 + 한 문장, 왼쪽 차량 그림 카드, 오른쪽 항목 목록 카드.
+// 목록에는 문제 · 잔량 · 주행거리 · 못 읽은 항목만 두고, 정상 · 지원 안 함 항목은 접어 둔다.
 
 @Composable
 fun VehicleStatusScreen(report: StatusReport, modifier: Modifier = Modifier) {
-    // 값이 있는 항목은 큰 카드로(문제 있는 것부터), 지원하지 않는 항목은 맨 아래 한 줄로 모은다
-    val shown = report.items
-        .filter { it.level != StatusLevel.UNSUPPORTED }
-        .sortedByDescending { it.level.severity }
-    val unsupported = report.items.filter { it.level == StatusLevel.UNSUPPORTED }
+    val sorted = report.items.sortedForList()
+    var expanded by rememberSaveable { mutableStateOf(false) }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(Palette.background)
-            .padding(horizontal = 48.dp, vertical = 40.dp),
-        verticalArrangement = Arrangement.spacedBy(32.dp),
-    ) {
-        Header()
-        SummaryBanner(report)
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(3),
-            horizontalArrangement = Arrangement.spacedBy(24.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp),
-            contentPadding = PaddingValues(bottom = 32.dp),
+    Column(modifier = modifier.fillMaxSize()) {
+        ScreenHeader("차량 상태", headerSub(report))
+        Column(
+            modifier = Modifier.weight(1f).padding(start = 40.dp, end = 40.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            items(shown, key = { it.id }) { StatusCard(it) }
-            if (unsupported.isNotEmpty()) {
-                item(span = { GridItemSpan(maxLineSpan) }) { UnsupportedRow(unsupported) }
+            Sentence(report)
+            Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                CarStage(primaryProblem(report), Modifier.weight(640f).fillMaxHeight())
+                ItemList(sorted, expanded, onToggle = { expanded = !expanded }, Modifier.weight(568f).fillMaxHeight())
             }
         }
     }
 }
 
-@Composable
-private fun Header() {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-        IconTile(Icons.Filled.DirectionsCar, Palette.accent, tileSize = 68, iconSize = 40)
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text("차량 요약", color = Palette.text, fontSize = 44.sp, fontWeight = FontWeight.Bold, lineHeight = 52.sp)
-            Text("탑승할 때 차 상태를 한눈에 확인해요", color = Palette.textMuted, fontSize = 22.sp)
-        }
-    }
+/** 목록 카드에 늘 보이는 항목 / 접어 두는 항목 */
+private data class SortedItems(val shown: List<StatusItem>, val folded: List<StatusItem>)
+
+private val ENERGY = setOf(StatusItemId.FUEL, StatusItemId.EV_BATTERY, StatusItemId.ENERGY)
+
+private fun List<StatusItem>.sortedForList(): SortedItems {
+    val problems = filter { it.level.severity > 0 }.sortedByDescending { it.level.severity }
+    val energy = filter { it.id in ENERGY && it.level == StatusLevel.OK }
+    val pending = filter { it.level == StatusLevel.UNKNOWN || it.level == StatusLevel.LOADING }
+    val info = filter { it.level == StatusLevel.INFO }
+    val shown = problems + energy + pending + info
+    return SortedItems(shown, filterNot { it in shown })
 }
 
+private fun primaryProblem(report: StatusReport): StatusItem? =
+    report.items.filter { it.level.severity > 0 }.maxByOrNull { it.level.severity }
+
+private fun headerSub(report: StatusReport): String {
+    val readable = report.items.filter { it.level != StatusLevel.UNSUPPORTED }
+    if (readable.any { it.level == StatusLevel.LOADING }) return "확인하는 중"
+    val unknown = readable.count { it.level == StatusLevel.UNKNOWN }
+    return if (unknown > 0) "실시간 점검 · ${unknown}개 확인 불가" else "실시간 점검"
+}
+
+/** 맨 위: 전체 상태 알약 + 요약 한 문장(.car-sentence) */
 @Composable
-private fun SummaryBanner(report: StatusReport) {
-    val level = report.overall
-    val color = level.color()
-    val icon = when (level) {
-        StatusLevel.URGENT -> Icons.Filled.Error
-        StatusLevel.CAUTION -> Icons.Filled.Warning
-        StatusLevel.LOADING -> Icons.Filled.HourglassTop
-        StatusLevel.UNKNOWN -> Icons.Filled.Info
-        else -> Icons.Filled.CheckCircle
-    }
+private fun Sentence(report: StatusReport) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(CardShape)
-            .background(color.copy(alpha = 0.12f))
-            .border(1.5.dp, color.copy(alpha = 0.4f), CardShape)
-            .padding(horizontal = 36.dp, vertical = 28.dp),
+        modifier = Modifier.fillMaxWidth().heightIn(min = 96.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(28.dp),
+        horizontalArrangement = Arrangement.spacedBy(20.dp),
     ) {
-        Box(
-            modifier = Modifier.size(68.dp).clip(CircleShape).background(color.copy(alpha = 0.2f)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(icon, contentDescription = level.label, tint = color, modifier = Modifier.size(40.dp))
+        val (text, tone, icon) = when (report.overall) {
+            StatusLevel.URGENT -> Triple("즉시 조치", PillTone.CRIT, HaidaIcons.Crit)
+            StatusLevel.CAUTION -> Triple("주의", PillTone.WARN, HaidaIcons.Warn)
+            StatusLevel.LOADING -> Triple("확인 중", PillTone.NEUTRAL, HaidaIcons.Clock)
+            StatusLevel.UNKNOWN -> Triple("확인 불가", PillTone.UNKNOWN, HaidaIcons.Unknown)
+            else -> Triple("정상", PillTone.NEUTRAL, HaidaIcons.Ok)
         }
-        Text(report.summary, color = Palette.text, fontSize = 32.sp, fontWeight = FontWeight.SemiBold, lineHeight = 44.sp)
+        StatusPill(text, tone, icon = icon)
+        Text(report.summary, style = HaidaType.sentence, color = Haida.colors.t1, modifier = Modifier.weight(1f))
     }
 }
 
+/** 왼쪽: 차량 그림과 가장 급한 문제 말풍선(.car-stage · .callout) */
 @Composable
-private fun StatusCard(item: StatusItem) {
-    val color = item.level.color()
-    val isProblem = item.level == StatusLevel.URGENT || item.level == StatusLevel.CAUTION
-    val hasValue = item.level != StatusLevel.UNKNOWN && item.level != StatusLevel.LOADING
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(336.dp)
-            .clip(CardShape)
-            .background(if (isProblem) color.copy(alpha = 0.07f) else Palette.card)
-            .border(if (isProblem) 2.5.dp else 1.dp, if (isProblem) color.copy(alpha = 0.8f) else Palette.cardBorder, CardShape)
-            .padding(32.dp),
-    ) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
-            IconTile(item.icon(), color, tileSize = 80, iconSize = 46)
-            LevelChip(item.level)
-        }
-        Spacer(Modifier.weight(1f))
-        Text(item.title, color = Palette.textMuted, fontSize = 24.sp)
-        Text(
-            item.detail,
-            color = Palette.text,
-            fontSize = if (hasValue) 52.sp else 30.sp,
-            fontWeight = if (hasValue) FontWeight.Bold else FontWeight.Medium,
-            lineHeight = if (hasValue) 60.sp else 38.sp,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+private fun CarStage(problem: StatusItem?, modifier: Modifier) {
+    val c = Haida.colors
+    val stage = if (c.isNight) {
+        Brush.radialGradient(0f to Color(0xFF2C3340), 0.58f to Color(0xFF1C2128), 1f to c.l1)
+    } else {
+        Brush.verticalGradient(listOf(c.l1, c.l2))
+    }
+    HaidaCard(modifier = modifier, raised = true, background = stage) {
+        Image(
+            painter = painterResource(if (c.isNight) R.drawable.haida_car_night else R.drawable.haida_car_day),
+            contentDescription = null,
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.align(Alignment.Center).fillMaxWidth().padding(horizontal = 10.dp),
         )
-        item.gauge?.let { Gauge(it, color) }
-        item.advice?.let {
-            // 요약 문장의 두 번째 문장(무엇을 할지)만 카드에 보인다
-            Text(
-                it.substringAfter(". ", it),
-                color = color,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(top = 10.dp),
-            )
-        }
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun UnsupportedRow(items: List<StatusItem>) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(CardShape)
-            .border(1.dp, Palette.cardBorder, CardShape)
-            .padding(horizontal = 32.dp, vertical = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Text("이 차량에서 지원하지 않는 항목", color = Palette.textMuted, fontSize = 22.sp)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            items.forEach { item ->
-                Row(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(50))
-                        .background(Palette.card)
-                        .padding(horizontal = 20.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    Icon(item.icon(), contentDescription = null, tint = Palette.neutral, modifier = Modifier.size(26.dp))
-                    Text(item.title, color = Palette.textMuted, fontSize = 22.sp)
-                }
-            }
-        }
+        problem?.let { Callout(it, Modifier.align(Alignment.TopStart).padding(start = 28.dp, top = 28.dp)) }
     }
 }
 
 @Composable
-private fun IconTile(icon: ImageVector, color: Color, tileSize: Int, iconSize: Int) {
-    Box(
-        modifier = Modifier
-            .size(tileSize.dp)
-            .clip(RoundedCornerShape((tileSize / 4).dp))
-            .background(color.copy(alpha = 0.16f)),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(iconSize.dp))
-    }
-}
-
-@Composable
-private fun LevelChip(level: StatusLevel) {
-    val color = level.color()
+private fun Callout(item: StatusItem, modifier: Modifier) {
+    val c = Haida.colors
+    val urgent = item.level == StatusLevel.URGENT
+    val color = if (urgent) c.crit else c.warn
+    val shape = RoundedCornerShape(50)
     Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(50))
-            .background(color.copy(alpha = 0.16f))
-            .padding(horizontal = 18.dp, vertical = 8.dp),
+        modifier = modifier
+            .height(56.dp)
+            .shadow(8.dp, shape, ambientColor = c.shadow, spotColor = c.shadow)
+            .clip(shape)
+            .background(c.l1)
+            .border(1.5.dp, if (urgent) c.critLine else c.warnLine, shape)
+            .padding(start = 14.dp, end = 20.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Box(Modifier.size(12.dp).clip(CircleShape).background(color))
-        Text(level.label, color = color, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+        Icon(item.icon(), contentDescription = null, tint = color, modifier = Modifier.size(30.dp))
+        Text("${item.title} · ${item.detail}", style = HaidaType.smallBold, color = color, maxLines = 1)
     }
 }
 
+/** 오른쪽: 항목 목록(.car-list). 맨 아래 접기 버튼으로 나머지를 펼친다. */
 @Composable
-private fun Gauge(value: Float, color: Color) {
-    Box(
-        modifier = Modifier
-            .padding(top = 12.dp)
-            .fillMaxWidth()
-            .height(12.dp)
-            .clip(RoundedCornerShape(50))
-            .background(Palette.cardBorder),
+private fun ItemList(items: SortedItems, expanded: Boolean, onToggle: () -> Unit, modifier: Modifier) {
+    HaidaCard(modifier = modifier) {
+        Column(modifier = Modifier.fillMaxSize().padding(horizontal = 28.dp, vertical = 8.dp)) {
+            Column(modifier = Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+                items.shown.forEachIndexed { index, item ->
+                    if (index > 0) Separator()
+                    ItemRow(item)
+                }
+                if (expanded && items.folded.isNotEmpty()) {
+                    Separator()
+                    Column(modifier = Modifier.padding(vertical = 10.dp)) {
+                        items.folded.forEach { FoldedRow(it) }
+                    }
+                }
+            }
+            if (items.folded.isNotEmpty()) {
+                val label = when {
+                    expanded -> "접기"
+                    items.folded.all { it.level == StatusLevel.OK } -> "정상 항목 모두 보기"
+                    else -> "나머지 ${items.folded.size}개 보기"
+                }
+                FoldButton(label, expanded, onToggle)
+            }
+        }
+    }
+}
+
+/** 목록 한 줄(.irow): 아이콘 칸 · 이름과 설명 · 오른쪽 상태 */
+@Composable
+private fun ItemRow(item: StatusItem) {
+    val c = Haida.colors
+    val tone = when (item.level) {
+        StatusLevel.URGENT -> TileTone.CRIT
+        StatusLevel.CAUTION -> TileTone.WARN
+        else -> TileTone.NEUTRAL
+    }
+    val isEnergy = item.id in ENERGY && item.gauge != null
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(18.dp),
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(value.coerceIn(0.02f, 1f))
-                .height(12.dp)
-                .clip(RoundedCornerShape(50))
-                .background(color),
+        IconTile(if (item.level == StatusLevel.UNKNOWN) HaidaIcons.Unknown else item.icon(), tone)
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                if (isEnergy) "${item.title} ${item.detail}" else item.title,
+                style = HaidaType.bodyBold,
+                color = c.t1,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            val sub = when {
+                item.advice != null -> item.advice.substringAfter(". ", item.advice)
+                isEnergy -> null
+                item.level == StatusLevel.INFO -> null
+                item.level == StatusLevel.LOADING -> "값을 기다리는 중이에요"
+                else -> item.detail
+            }
+            sub?.let { Text(it, style = HaidaType.small, color = c.t3, maxLines = 2, overflow = TextOverflow.Ellipsis) }
+            if (isEnergy) {
+                LevelBar(item.gauge ?: 0f, item.level.barColor(), Modifier.padding(top = 6.dp).width(240.dp))
+            }
+        }
+        when (item.level) {
+            StatusLevel.URGENT -> StatusPill("즉시 조치", PillTone.CRIT)
+            StatusLevel.CAUTION -> StatusPill("주의", PillTone.WARN)
+            StatusLevel.UNKNOWN -> StatusPill("확인 불가", PillTone.UNKNOWN)
+            StatusLevel.LOADING -> StatusPill("확인 중", PillTone.NEUTRAL)
+            StatusLevel.INFO -> Text(item.detail, style = HaidaType.bodyBold, color = c.t1)
+            else -> StatusPill("정상", PillTone.OK)
+        }
+    }
+}
+
+/** 펼친 목록의 작은 줄(.fl-row) */
+@Composable
+private fun FoldedRow(item: StatusItem) {
+    val c = Haida.colors
+    val supported = item.level != StatusLevel.UNSUPPORTED
+    Row(
+        modifier = Modifier.fillMaxWidth().height(46.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Icon(item.icon(), contentDescription = null, tint = c.t2, modifier = Modifier.size(28.dp))
+        Text(item.title, style = HaidaType.small, color = c.t2, modifier = Modifier.weight(1f))
+        Text(
+            if (supported) item.detail else "이 차에서 못 읽어요",
+            style = HaidaType.smallBold,
+            color = if (supported) c.t1 else c.t3,
         )
     }
 }
 
-private fun StatusLevel.color(): Color = when (this) {
-    StatusLevel.URGENT -> Palette.urgent
-    StatusLevel.CAUTION -> Palette.caution
-    StatusLevel.OK -> Palette.ok
-    StatusLevel.INFO -> Palette.accent
-    else -> Palette.neutral
+@Composable
+private fun FoldButton(label: String, expanded: Boolean, onClick: () -> Unit) {
+    val c = Haida.colors
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(76.dp)
+            .clickable(role = Role.Button, onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Icon(if (expanded) HaidaIcons.ChevronUp else HaidaIcons.ChevronDown, contentDescription = null, tint = c.t2, modifier = Modifier.size(30.dp))
+        Text(label, style = HaidaType.bodySemi, color = c.t2)
+    }
 }
 
 private fun StatusItem.icon(): ImageVector = when (id) {
-    StatusItemId.ENGINE_OIL -> Icons.Filled.OilBarrel
-    StatusItemId.TRANSMISSION_OIL -> Icons.Filled.Settings
-    StatusItemId.BRAKE_FLUID -> BrakeWarningIcon
-    StatusItemId.WASHER_FLUID -> Icons.Filled.WaterDrop
-    StatusItemId.FUEL -> Icons.Filled.LocalGasStation
-    StatusItemId.EV_BATTERY -> batteryIcon(gauge)
-    StatusItemId.ENERGY -> Icons.Filled.EvStation
-    StatusItemId.ODOMETER -> Icons.Filled.Speed
+    StatusItemId.ENGINE_OIL -> HaidaIcons.Oil
+    StatusItemId.TRANSMISSION_OIL -> HaidaIcons.Oil
+    StatusItemId.BRAKE_FLUID -> HaidaIcons.Brake
+    StatusItemId.WASHER_FLUID -> HaidaIcons.Washer
+    StatusItemId.FUEL -> HaidaIcons.Fuel
+    StatusItemId.EV_BATTERY -> HaidaIcons.Battery
+    StatusItemId.ENERGY -> HaidaIcons.Battery
+    StatusItemId.ODOMETER -> HaidaIcons.Gauge
 }
 
-private fun batteryIcon(gauge: Float?): ImageVector = when {
-    gauge == null -> Icons.Filled.BatteryStd
-    gauge >= 0.9f -> Icons.Filled.BatteryFull
-    gauge >= 0.6f -> Icons.Filled.Battery6Bar
-    gauge >= 0.35f -> Icons.Filled.Battery4Bar
-    gauge > 0.1f -> Icons.Filled.Battery2Bar
-    else -> Icons.Filled.Battery0Bar
-}
-
-/** 계기판의 브레이크 경고등 모양: ( ! ) */
-private val BrakeWarningIcon: ImageVector by lazy {
-    ImageVector.Builder("BrakeWarning", 24.dp, 24.dp, 24f, 24f).apply {
-        path(stroke = SolidColor(Color.Black), strokeLineWidth = 2f, strokeLineCap = StrokeCap.Round) {
-            // 가운데 원
-            moveTo(18.5f, 12f)
-            arcTo(6.5f, 6.5f, 0f, isMoreThanHalf = true, isPositiveArc = true, x1 = 5.5f, y1 = 12f)
-            arcTo(6.5f, 6.5f, 0f, isMoreThanHalf = true, isPositiveArc = true, x1 = 18.5f, y1 = 12f)
-            // 양옆 괄호
-            moveTo(4.2f, 6.5f)
-            arcTo(9.6f, 9.6f, 0f, isMoreThanHalf = false, isPositiveArc = false, x1 = 4.2f, y1 = 17.5f)
-            moveTo(19.8f, 6.5f)
-            arcTo(9.6f, 9.6f, 0f, isMoreThanHalf = false, isPositiveArc = true, x1 = 19.8f, y1 = 17.5f)
-            // 느낌표 막대
-            moveTo(12f, 8.6f)
-            lineTo(12f, 12.4f)
-        }
-        path(fill = SolidColor(Color.Black)) {
-            moveTo(13.1f, 15.2f)
-            arcTo(1.1f, 1.1f, 0f, isMoreThanHalf = true, isPositiveArc = true, x1 = 10.9f, y1 = 15.2f)
-            arcTo(1.1f, 1.1f, 0f, isMoreThanHalf = true, isPositiveArc = true, x1 = 13.1f, y1 = 15.2f)
-        }
-    }.build()
+@Composable
+private fun StatusLevel.barColor(): Color = when (this) {
+    StatusLevel.URGENT -> Haida.colors.crit
+    StatusLevel.CAUTION -> Haida.colors.warnFill
+    else -> Haida.colors.ac
 }
