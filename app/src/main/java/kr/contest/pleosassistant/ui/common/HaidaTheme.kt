@@ -13,6 +13,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import java.io.File
@@ -136,12 +137,16 @@ val HaidaFont: FontFamily by lazy {
 
 /** 글자 크기 단계 (프로토타입 --f-hero · --f-t · --f-b · --f-s). Text(style = …) 는 바깥 글꼴을 물려받지 않아 글꼴을 함께 넣는다. */
 object HaidaType {
+    // 프로토타입의 word-break: keep-all · text-wrap: balance 처럼 낱말 중간에서 줄을 바꾸지 않고 줄 길이를 고르게 한다
+    private val KeepWords = LineBreak(LineBreak.Strategy.Balanced, LineBreak.Strictness.Normal, LineBreak.WordBreak.Phrase)
+
     private fun style(size: Int, weight: FontWeight, line: Int, spacing: Double = 0.0) = TextStyle(
         fontFamily = HaidaFont,
         fontSize = size.sp,
         fontWeight = weight,
         lineHeight = line.sp,
         letterSpacing = spacing.em,
+        lineBreak = KeepWords,
     )
 
     val hero = style(52, FontWeight.SemiBold, 62, -0.03)

@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -45,6 +44,7 @@ import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.PathParser
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -146,7 +146,7 @@ private fun CarStage(report: StatusReport, problem: StatusItem?, measuredAt: Str
                 Text(report.summary, style = HaidaType.carSentence, color = c.t1)
             }
             BoxWithConstraints(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                // 프로토타입: 도식 높이 740. 말풍선(88) + 잇는 선(30) 자리를 위에 남긴다
+                // 프로토타입: 도식 높이 740. 위에 말풍선(88) + 잇는 선(30) 자리와 위아래 여백 20 을 남긴다
                 val height = minOf(740.dp, maxHeight - 158.dp).coerceAtLeast(240.dp)
                 val unit = height / 640f
                 val hoodTop = unit * 40f
@@ -159,7 +159,14 @@ private fun CarStage(report: StatusReport, problem: StatusItem?, measuredAt: Str
                     }
                     CarFlat(
                         hood = problem?.level,
-                        modifier = Modifier.offset(y = -hoodTop).size(unit * 300f, height),
+                        // 잇는 선이 보닛 표시까지 닿도록 도식을 그만큼 위로 겹친다(자리도 그만큼만 차지)
+                        modifier = Modifier
+                            .layout { measurable, constraints ->
+                                val placeable = measurable.measure(constraints)
+                                val overlap = hoodTop.roundToPx()
+                                layout(placeable.width, placeable.height - overlap) { placeable.place(0, -overlap) }
+                            }
+                            .size(unit * 300f, height),
                     )
                 }
             }
