@@ -2,17 +2,14 @@ package kr.contest.pleosassistant.ui
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -38,16 +35,17 @@ import androidx.compose.ui.unit.dp
 import kr.contest.pleosassistant.memory.MemoryReport
 import kr.contest.pleosassistant.status.StatusReport
 import kr.contest.pleosassistant.ui.common.AssistantPanel
+import kr.contest.pleosassistant.ui.common.AssistantPanelHeight
 import kr.contest.pleosassistant.ui.common.ButtonKind
-import kr.contest.pleosassistant.ui.common.HaidaButton
-import kr.contest.pleosassistant.ui.memory.MemoryActions
-import kr.contest.pleosassistant.ui.memory.MemoryScreen
 import kr.contest.pleosassistant.ui.common.Haida
+import kr.contest.pleosassistant.ui.common.HaidaButton
 import kr.contest.pleosassistant.ui.common.HaidaIcons
 import kr.contest.pleosassistant.ui.common.HaidaType
+import kr.contest.pleosassistant.ui.memory.MemoryActions
+import kr.contest.pleosassistant.ui.memory.MemoryScreen
 import kr.contest.pleosassistant.ui.status.VehicleStatusScreen
 
-// 앱 틀: 팀 UI 프로토타입의 왼쪽 메뉴(.dock, 너비 128)와 화면 영역(.main).
+// 앱 틀: 팀 UI 프로토타입의 왼쪽 메뉴(.dock, 너비 128, 브랜드 연한 색)와 화면 영역(.main).
 // 다른 기능 화면은 Destination 에 한 줄 추가하고 when 에 화면을 넣는다.
 
 private enum class Destination(val label: String, val icon: ImageVector) {
@@ -61,7 +59,8 @@ private enum class Destination(val label: String, val icon: ImageVector) {
 @Composable
 fun HaidaApp(status: StatusReport, memory: MemoryReport, driving: Boolean, memoryActions: MemoryActions) {
     var current by rememberSaveable { mutableStateOf(Destination.CAR) }
-    val c = Haida.colors
+    // 하차 알림: 동승 화면에서는 체크 목록으로, 다른 화면에서는 아래 비서 패널로 띄운다
+    val arrival = memory.arrivalMessage?.takeIf { current != Destination.PEOPLE }
 
     Row(modifier = Modifier.fillMaxSize().background(Haida.colors.l0)) {
         Dock(
@@ -76,28 +75,23 @@ fun HaidaApp(status: StatusReport, memory: MemoryReport, driving: Boolean, memor
             onSelect = { current = it },
         )
         Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
-            when (current) {
-                Destination.CAR -> VehicleStatusScreen(status, driving)
-                Destination.PEOPLE -> MemoryScreen(memory, driving, memoryActions)
+            // 비서 패널은 본문을 덮지 않는다: 패널이 뜨면 본문 아래에 패널 자리(높이 + 위아래 간격)를 비운다
+            val bottom = if (arrival != null) AssistantPanelHeight + 18.dp + 16.dp - 24.dp else 0.dp
+            Box(Modifier.fillMaxSize().padding(bottom = bottom)) {
+                when (current) {
+                    Destination.CAR -> VehicleStatusScreen(status, driving)
+                    Destination.PEOPLE -> MemoryScreen(memory, driving, memoryActions)
+                }
             }
-            // 하차 알림: 동승 화면에서는 체크 목록으로, 다른 화면에서는 아래 비서 패널로 띄운다
-            val arrival = memory.arrivalMessage
-            if (arrival != null && current != Destination.PEOPLE) {
-                Box(
-                    Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .height(180.dp)
-                        .background(Brush.verticalGradient(listOf(c.l0.copy(alpha = 0f), c.l0.copy(alpha = 0.55f)))),
-                )
+            if (arrival != null) {
                 AssistantPanel(
                     tag = "도착",
                     text = arrival,
                     tagIcon = HaidaIcons.Bag,
                     modifier = Modifier.align(Alignment.BottomCenter).padding(start = 40.dp, end = 40.dp, bottom = 18.dp),
                 ) {
-                    HaidaButton("다 챙겼어요", onClick = { memoryActions.closeArrival(collected = true) }, kind = ButtonKind.PRIMARY)
-                    HaidaButton("나중에", onClick = { memoryActions.closeArrival(collected = false) })
+                    HaidaButton("다 챙겼어요", onClick = { memoryActions.closeArrival(collected = true) }, kind = ButtonKind.PRIMARY, height = 76.dp)
+                    HaidaButton("나중에", onClick = { memoryActions.closeArrival(collected = false) }, height = 76.dp)
                 }
             }
         }
@@ -112,32 +106,34 @@ private fun Dock(current: Destination, badge: (Destination) -> Boolean, onSelect
         modifier = Modifier
             .width(128.dp)
             .fillMaxHeight()
-            .background(c.l1)
-            .drawBehind { drawLine(c.line, Offset(size.width, 0f), Offset(size.width, size.height), strokeWidth = 1.dp.toPx()) }
-            .padding(top = 14.dp, bottom = 16.dp),
+            .background(c.acSoft)
+            .padding(vertical = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Image(rememberVectorPainter(logo), contentDescription = "HAIDA", modifier = Modifier.padding(bottom = 10.dp).size(56.dp))
+        Image(rememberVectorPainter(logo), contentDescription = "HAIDA", modifier = Modifier.size(56.dp))
+        // 메뉴는 세로 가운데에 모은다
+        Spacer(Modifier.weight(1f))
         Destination.entries.forEach { dest ->
             DockItem(dest, selected = dest == current, badge = dest != current && badge(dest), onClick = { onSelect(dest) })
         }
+        Spacer(Modifier.weight(1f))
     }
 }
 
 @Composable
 private fun DockItem(dest: Destination, selected: Boolean, badge: Boolean, onClick: () -> Unit) {
     val c = Haida.colors
-    val color = if (selected) c.ac else c.t3
+    val color = if (selected) c.ac else c.t2
     Column(
         modifier = Modifier
-            .width(100.dp)
-            .height(92.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .background(if (selected) c.acSoft else c.l1)
+            .width(104.dp)
+            .height(120.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (selected) c.l1 else c.acSoft)
             .clickable(role = Role.Tab, onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically),
+        verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
     ) {
         Box {
             Icon(dest.icon, contentDescription = null, tint = color, modifier = Modifier.size(38.dp))
@@ -148,13 +144,13 @@ private fun DockItem(dest: Destination, selected: Boolean, badge: Boolean, onCli
                         .offset(x = 8.dp, y = (-4).dp)
                         .size(14.dp)
                         .clip(CircleShape)
-                        .background(c.l1)
+                        .background(c.acSoft)
                         .padding(2.dp)
                         .clip(CircleShape)
                         .background(c.warnFill),
                 )
             }
         }
-        Text(dest.label, style = HaidaType.eyebrow, color = color)
+        Text(dest.label, style = if (selected) HaidaType.smallSemi else HaidaType.eyebrow, color = color)
     }
 }

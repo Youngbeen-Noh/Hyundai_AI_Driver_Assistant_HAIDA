@@ -19,7 +19,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -54,8 +53,8 @@ import kr.contest.pleosassistant.ui.common.HaidaIcons
 import kr.contest.pleosassistant.ui.common.HaidaType
 import kr.contest.pleosassistant.ui.common.dashedBorder
 
-// 팀 UI 프로토타입의 좌석 현황(.pp-map): 위에서 본 차(carTop SVG 300 × 640 을 옮김)와 좌석 이름표.
-// 프로토타입과 같은 600 × 556 칸에 그리고, 카드가 더 크면 가운데에 둔다.
+// 팀 UI 프로토타입(수정본)의 좌석 현황(.pp-map): 위에서 본 차(carTop SVG 300 × 640 을 옮김)와 좌석 이름표 · 범례.
+// 프로토타입과 같은 760 × 1110 칸에 그리고, 카드 크기에 맞춰 같은 비율로 줄이거나 키운다.
 
 private enum class SeatDraw { PERSON, ASK, EMPTY }
 
@@ -66,12 +65,17 @@ private enum class TrunkDraw { NONE, ITEM, HIGHLIGHT }
  * @param highlightTrunk 하차 알림에서 트렁크를 확인하라고 강조
  * @param onSeatClick 이름을 건너뛴 좌석(손님)을 누르면 다시 묻는다
  */
+/** 프로토타입 좌석 현황 칸 크기 */
+const val SEAT_MAP_WIDTH = 760
+const val SEAT_MAP_HEIGHT = 1110
+
 @Composable
 fun SeatMap(
     seats: List<SeatCard>,
     eyebrow: String,
     trunkItems: List<String>,
     highlightTrunk: Boolean,
+    showLabels: Boolean,
     onSeatClick: (Seat) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -88,41 +92,64 @@ fun SeatMap(
         else -> TrunkDraw.ITEM
     }
 
-    Box(modifier = modifier.size(600.dp, 556.dp)) {
-        Eyebrow(eyebrow, Modifier.offset(28.dp, 18.dp))
+    Box(modifier = modifier.size(SEAT_MAP_WIDTH.dp, SEAT_MAP_HEIGHT.dp)) {
+        Eyebrow(eyebrow, Modifier.offset(32.dp, 28.dp))
         CarTopView(
             fl = SeatDraw.PERSON,
             fr = draw(Seat.PASSENGER),
             rl = draw(Seat.REAR_LEFT),
             rr = draw(Seat.REAR_RIGHT),
             trunk = trunk,
-            modifier = Modifier.offset(197.dp, 40.dp).size(206.dp, 440.dp),
+            modifier = Modifier.offset(208.dp, 150.dp).size(345.dp, 736.dp),
         )
+        // 주행 중에는 도식만 남긴다(이름표 · 범례 숨김)
+        if (!showLabels) return@Box
         // 이름표와 좌석을 잇는 점선(프로토타입 좌표 그대로)
-        Canvas(Modifier.size(600.dp, 556.dp)) {
+        Canvas(Modifier.size(SEAT_MAP_WIDTH.dp, SEAT_MAP_HEIGHT.dp)) {
             val dash = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 5.dp.toPx()))
             listOf(
-                Offset(202f, 186f) to Offset(244f, 228f),
-                Offset(398f, 186f) to Offset(356f, 228f),
-                Offset(202f, 326f) to Offset(244f, 296f),
-                Offset(398f, 326f) to Offset(356f, 296f),
+                Offset(236f, 371f) to Offset(292f, 450f),
+                Offset(524f, 371f) to Offset(468f, 450f),
+                Offset(236f, 651f) to Offset(292f, 590f),
+                Offset(524f, 651f) to Offset(468f, 590f),
             ).forEach { (a, b) ->
                 drawLine(c.t3, Offset(a.x.dp.toPx(), a.y.dp.toPx()), Offset(b.x.dp.toPx(), b.y.dp.toPx()), 2.dp.toPx(), pathEffect = dash)
             }
         }
-        SeatLabel("운전석", "나", LabelStyle.NORMAL, HaidaIcons.Check, Modifier.offset(14.dp, 150.dp))
-        PassengerLabel(bySeat[Seat.PASSENGER], "조수석", onSeatClick, Modifier.offset(398.dp, 150.dp))
-        PassengerLabel(bySeat[Seat.REAR_LEFT], "뒤 왼쪽", onSeatClick, Modifier.offset(14.dp, 290.dp))
-        PassengerLabel(bySeat[Seat.REAR_RIGHT], "뒤 오른쪽", onSeatClick, Modifier.offset(398.dp, 290.dp))
+        SeatLabel("운전석", "나", LabelStyle.NORMAL, HaidaIcons.Check, Modifier.offset(16.dp, 330.dp))
+        PassengerLabel(bySeat[Seat.PASSENGER], "조수석", onSeatClick, Modifier.offset(524.dp, 330.dp))
+        PassengerLabel(bySeat[Seat.REAR_LEFT], "뒤 왼쪽", onSeatClick, Modifier.offset(16.dp, 610.dp))
+        PassengerLabel(bySeat[Seat.REAR_RIGHT], "뒤 오른쪽", onSeatClick, Modifier.offset(524.dp, 610.dp))
         if (trunkItems.isNotEmpty()) {
             SeatLabel(
                 title = "트렁크",
                 sub = trunkItems.joinToString(" · "),
                 style = if (highlightTrunk) LabelStyle.HIGHLIGHT else LabelStyle.EMPTY,
                 icon = HaidaIcons.Bag,
-                modifier = Modifier.offset(206.dp, 478.dp),
+                modifier = Modifier.offset(260.dp, 894.dp),
+                width = 240,
                 centered = true,
             )
+        }
+        Legend(Modifier.align(Alignment.BottomCenter).padding(bottom = 28.dp))
+    }
+}
+
+/** 범례(.pp-legend): 탑승 · 확인 필요 · 소지품 */
+@Composable
+private fun Legend(modifier: Modifier) {
+    val c = Haida.colors
+    val shape = RoundedCornerShape(7.dp)
+    Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(32.dp)) {
+        listOf(
+            "탑승" to Modifier.background(c.ac, shape).border(2.dp, c.ac, shape),
+            "확인 필요" to Modifier.background(c.acSoft, shape).dashedBorder(2.dp, c.ac, 7.dp, 4.dp, 3.dp),
+            "소지품" to Modifier.background(c.l3, shape).dashedBorder(2.dp, c.t3, 7.dp, 4.dp, 3.dp),
+        ).forEach { (label, swatch) ->
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Box(Modifier.size(22.dp, 26.dp).then(swatch))
+                Text(label, style = HaidaType.eyebrow, color = c.t3)
+            }
         }
     }
 }
@@ -150,24 +177,24 @@ private fun SeatLabel(
     style: LabelStyle,
     icon: ImageVector?,
     modifier: Modifier,
+    width: Int = 220,
     centered: Boolean = false,
 ) {
     val c = Haida.colors
-    val shape = RoundedCornerShape(18.dp)
+    val shape = RoundedCornerShape(12.dp)
     val frame = when (style) {
-        LabelStyle.NORMAL -> Modifier.border(1.5.dp, c.line2, shape)
-        LabelStyle.ASK -> Modifier.border(1.5.dp, c.ac, shape)
-        LabelStyle.EMPTY -> Modifier.dashedBorder(1.5.dp, c.line2, 18.dp)
+        LabelStyle.NORMAL -> Modifier.border(1.dp, c.line2, shape)
+        LabelStyle.ASK -> Modifier.border(1.dp, c.ac, shape)
+        LabelStyle.EMPTY -> Modifier.dashedBorder(1.dp, c.line2, 12.dp)
         LabelStyle.HIGHLIGHT -> Modifier.border(2.dp, c.ac, shape)
     }
     Column(
         modifier = modifier
-            .size(188.dp, 78.dp)
-            .shadow(4.dp, shape, ambientColor = c.shadow.copy(alpha = 0.3f), spotColor = c.shadow.copy(alpha = 0.3f))
+            .size(width.dp, 80.dp)
             .clip(shape)
             .background(if (style == LabelStyle.ASK) c.acSoft else c.l1)
             .then(frame)
-            .padding(start = 16.dp, end = 14.dp, top = 8.dp, bottom = 8.dp),
+            .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = if (centered) Alignment.CenterHorizontally else Alignment.Start,
     ) {

@@ -29,6 +29,10 @@
         <activity
             android:name=".MainActivity"
             android:exported="true">
+            <!-- 주행 중에도 화면을 보인다(AAOS 주행 중 제한). 주행 중에는 화면이 입력 · 편집을 숨기고 한 문장 · 큰 버튼만 남긴다 -->
+            <meta-data
+                android:name="distractionOptimized"
+                android:value="true" />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

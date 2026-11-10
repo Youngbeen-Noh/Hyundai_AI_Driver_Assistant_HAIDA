@@ -103,7 +103,7 @@ class MemoryReportTest {
     }
 
     @Test
-    fun `하차하면 챙길 물건이 체크 목록에 오르고, 하나 챙기면 빠진다`() {
+    fun `하차 체크 목록 - 챙긴 것을 표시하고, 나중에 하면 표시한 것만 지운다`() {
         val parked = empty()
             .addBelonging("트렁크에 우산 넣었어", now)
             .addBelonging("조수석에 지갑 뒀어", now)
@@ -112,8 +112,19 @@ class MemoryReportTest {
         assertEquals(listOf("우산", "지갑"), parked.report().arrivalItems.map { it.item })
 
         val umbrella = parked.report().arrivalItems.first().id
-        assertEquals(listOf("지갑"), parked.collect(umbrella).report().arrivalItems.map { it.item })
-        assertTrue(parked.closeArrival(collected = false).report().arrivalItems.isEmpty())
+        val checked = parked.collect(umbrella)
+        assertEquals(listOf("우산", "지갑"), checked.report().arrivalItems.map { it.item })
+        assertEquals(setOf(umbrella), checked.report().arrivalDone)
+        assertEquals("조수석에 둔 지갑 챙기세요.", checked.report().arrivalMessage)
+        // 다시 누르면 표시를 끈다
+        assertTrue(checked.collect(umbrella).report().arrivalDone.isEmpty())
+        // 둘 다 챙기면 다 챙겼다고 말한다
+        val wallet = parked.report().arrivalItems.last().id
+        assertEquals(MemoryMessages.ALL_COLLECTED, checked.collect(wallet).report().arrivalMessage)
+
+        val later = checked.closeArrival(collected = false)
+        assertTrue(later.report().arrivalItems.isEmpty())
+        assertEquals(listOf("지갑"), later.report().belongings.map { it.item })
     }
 
     @Test

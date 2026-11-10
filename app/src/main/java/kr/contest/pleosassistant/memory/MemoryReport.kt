@@ -18,6 +18,8 @@ data class MemoryReport(
     val parkAlertAvailable: Boolean,
     /** 하차 알림에서 챙길 물건(체크 목록). 알림이 없으면 빈 목록 */
     val arrivalItems: List<BelongingRow>,
+    /** arrivalItems 중 챙겼다고 표시한 것 */
+    val arrivalDone: Set<Long>,
     /** 동행 관리: 탄 적 있는 사람, 최근에 탄 사람부터 */
     val people: List<PersonRow>,
 )
@@ -53,6 +55,7 @@ data class BelongingRow(
 object MemoryMessages {
     const val NOTHING = "기억해 둔 동승자와 물건이 없어요."
     const val NOT_UNDERSTOOD = "무엇을 어디에 뒀는지 알려 주세요. 예: 트렁크에 우산 넣었어"
+    const val ALL_COLLECTED = "다 챙겼어요."
     val EXAMPLES = listOf("트렁크에 우산 넣었어", "내일 반납할 책 뒷자리에 뒀어")
 
     fun greeting(names: List<String>) = names.joinToString(", ") { "${it}님" } + " 타셨네요."
@@ -60,6 +63,7 @@ object MemoryMessages {
     fun confirm(name: String) = "오늘도 ${name}님이죠?"
     fun remembered(count: Int) = "물건 ${count}개를 기억하고 있어요."
     fun arrivalLeft(count: Int) = if (count > 0) "챙길 것 ${count}개 남았어요" else "다 챙겼어요"
+    fun arrivalProgress(done: Int, total: Int) = "$done / $total 챙김"
 
     /** 동행 관리의 지우기 확인. 받침에 맞춰 조사를 고른다(명 → 과 · 을, 개 → 를). */
     fun forgetQuestion(people: Int, items: Int): String = when {
@@ -80,9 +84,13 @@ fun buildMemoryReport(state: MemoryState, today: LocalDate): MemoryReport {
         // 지금 챙길 것(날 없음 · 오늘 · 지난 날)이 위, 나중 날짜가 아래
         belongings = belongings.sortedWith(compareBy<Belonging>({ it.due ?: LocalDate.MIN }, { it.id })).map { it.toRow(today) },
         inputError = state.inputError,
-        arrivalMessage = arrivalItems.takeIf { it.isNotEmpty() }?.let(::arrivalMessage),
+        // 체크 목록에서 아직 안 챙긴 것만 말한다. 다 챙겼으면 그렇다고 말한다
+        arrivalMessage = arrivalItems.takeIf { it.isNotEmpty() }?.let { all ->
+            all.filterNot { it.id in state.arrivalDone }.takeIf { it.isNotEmpty() }?.let(::arrivalMessage) ?: MemoryMessages.ALL_COLLECTED
+        },
         parkAlertAvailable = state.gear !is Reading.Unsupported,
         arrivalItems = arrivalItems.map { it.toRow(today) },
+        arrivalDone = state.arrivalDone.filter { id -> arrivalItems.any { it.id == id } }.toSet(),
         people = people(state.data.rides),
     )
 }
