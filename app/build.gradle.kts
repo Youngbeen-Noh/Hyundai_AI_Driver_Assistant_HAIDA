@@ -50,9 +50,10 @@ dependencies {
     implementation(libs.pleos.vehicle)
     implementation(libs.pleos.vehicle.data)
     implementation(libs.pleos.navihelper)
+    // 음성 출력 · 인식: 차 안(ON_DEVICE) 모드만 써서 앱 등록 없이 쓴다
+    implementation(libs.pleos.tts)
+    implementation(libs.pleos.stt)
     // 준비 중 SDK — 승인 후 주석 해제
-    // implementation(libs.pleos.tts)
-    // implementation(libs.pleos.stt)
     // implementation(libs.pleos.fusedlocation)
 
     implementation(libs.androidx.core.ktx)

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 디버그 빌드에만: 에뮬레이터에서 adb 로 말 · 내비를 넣어 보는 수신기. DUMP 권한이 있는 adb shell 만 보낼 수 있다 -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- 확인용: 앱이 직접 목적지를 넣어 내비 이벤트를 받아 본다 -->
+    <uses-permission android:name="pleos.car.permission.NAVI_ROUTE_SEARCH" />
+
+    <application>
+        <receiver
+            android:name=".DebugReceiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP">
+            <intent-filter>
+                <action android:name="kr.contest.pleosassistant.DEBUG" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

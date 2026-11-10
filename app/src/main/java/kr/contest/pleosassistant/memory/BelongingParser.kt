@@ -62,11 +62,14 @@ private val PLACE_PATTERNS: List<Pair<String, Regex>> = PLACES
 private val DUE_OFFSETS = mapOf("오늘" to 0L, "내일" to 1L, "모레" to 2L)
 private val DUE_WORD = Regex("""(?<=\s)(오늘|내일|모레)(?:까지|에|은|는)?(?=\s)""")
 
-/** 문장 끝의 "넣었어", "뒀어요", "넣어 놨어", "있어" 같은 말 */
-private val VERB = Regex("""^(넣|뒀|둬|두었|놨|놔|놓|실었|실어|실음|있|보관|챙겼|챙겨|갖다|가져다).*""")
+/**
+ * 문장 끝의 "넣었어", "뒀어요", "넣어 놨어", "있어" 같은 말과
+ * 말로 부탁할 때 붙는 "가져왔어 챙기라고 해줘", "알려 줘", "기억해" 같은 말
+ */
+private val VERB = Regex("""^(?:(?:넣|뒀|둬|두었|놨|놔|놓|실었|실어|실음|있|보관|챙겼|챙겨|챙기|갖다|가져|들고|알려|말해|기억|잊지|부탁).*|해(?:줘|줘요|주세요|줄래)?|줘(?:요)?)$""")
 
 /** 물건 이름이 아닌 말 */
-private val FILLER_WORDS = setOf("나", "내가", "제가", "저", "방금", "아까", "지금")
+private val FILLER_WORDS = setOf("나", "내가", "제가", "저", "방금", "아까", "지금", "좀", "꼭", "이거", "그거")
 
 private val PUNCTUATION = Regex("""[.!?~,]""")
 private val WHITESPACE = Regex("""\s+""")

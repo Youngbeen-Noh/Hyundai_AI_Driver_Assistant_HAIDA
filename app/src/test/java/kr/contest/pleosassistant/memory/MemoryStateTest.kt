@@ -127,7 +127,7 @@ class MemoryStateTest {
         assertNull("처음부터 P 인 것은 하차가 아니다", state.arrival)
 
         val arrived = state.drive().park()
-        assertEquals(listOf(1L), arrived.arrival)
+        assertEquals(listOf(1L), arrived.arrival?.items?.map { it.belongingId })
     }
 
     @Test
@@ -139,7 +139,7 @@ class MemoryStateTest {
 
         val tomorrow = tue0830.plusDays(1)
         val nextDay = state.onGear(Reading.Value(Gear.DRIVE), tomorrow).onGear(Reading.Value(Gear.PARK), tomorrow)
-        assertEquals(listOf(1L), nextDay.arrival)
+        assertEquals(listOf(1L), nextDay.arrival?.items?.map { it.belongingId })
     }
 
     @Test
@@ -171,7 +171,7 @@ class MemoryStateTest {
         val state = ready().addBelonging("우산 챙겨", tue0830).drive()
             .onGear(Reading.Unavailable, tue0830)
             .park()
-        assertEquals(listOf(1L), state.arrival)
+        assertEquals(listOf(1L), state.arrival?.items?.map { it.belongingId })
     }
 
     // ---- 다 잊어줘 ----

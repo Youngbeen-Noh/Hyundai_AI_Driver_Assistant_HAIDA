@@ -6,6 +6,7 @@ import kr.contest.pleosassistant.memory.Belonging
 import kr.contest.pleosassistant.memory.MemoryData
 import kr.contest.pleosassistant.memory.MemoryStore
 import kr.contest.pleosassistant.memory.Ride
+import kr.contest.pleosassistant.memory.Routine
 import kr.contest.pleosassistant.memory.Seat
 import org.json.JSONArray
 import org.json.JSONObject
@@ -55,9 +56,11 @@ class FileMemoryStore(file: File) : MemoryStore {
                         .put("place", it.place ?: JSONObject.NULL)
                         .put("due", it.due?.toString() ?: JSONObject.NULL)
                         .put("addedAt", it.addedAt.toString())
+                        .put("owner", it.owner ?: JSONObject.NULL)
                 },
             ),
         )
+        .put("routines", JSONArray(data.routines.map { JSONObject().put("place", it.place).put("items", JSONArray(it.items)) }))
 
     private fun decode(json: JSONObject): MemoryData {
         val rides = json.optJSONArray("rides").objects().mapNotNull { o ->
@@ -71,19 +74,25 @@ class FileMemoryStore(file: File) : MemoryStore {
                 place = o.optStringOrNull("place"),
                 due = o.optStringOrNull("due")?.let(LocalDate::parse),
                 addedAt = LocalDateTime.parse(o.getString("addedAt")),
+                owner = o.optStringOrNull("owner"),
             )
         }
+        val routines = json.optJSONArray("routines").objects().map { o ->
+            val items = o.optJSONArray("items")
+            Routine(o.getString("place"), if (items == null) emptyList() else (0 until items.length()).map { items.getString(it) })
+        }.filter { it.items.isNotEmpty() }
         val nextId = maxOf(json.optLong("nextBelongingId", 1), (belongings.maxOfOrNull { it.id } ?: 0) + 1)
-        return MemoryData(rides, belongings, nextId)
+        return MemoryData(rides, belongings, nextId, routines)
     }
 
     private fun JSONArray?.objects(): List<JSONObject> =
         if (this == null) emptyList() else (0 until length()).map { getJSONObject(it) }
 
-    private fun JSONObject.optStringOrNull(key: String): String? = if (isNull(key)) null else optString(key)
+    private fun JSONObject.optStringOrNull(key: String): String? = if (isNull(key)) null else optString(key).ifEmpty { null }
 
     private companion object {
         const val TAG = "FileMemoryStore"
-        const val VERSION = 1
+        /** 2: 동승자 물건(owner) · 목적지마다 늘 챙길 것(routines). 1 도 그대로 읽는다 */
+        const val VERSION = 2
     }
 }

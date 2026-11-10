@@ -17,6 +17,11 @@
     <uses-permission android:name="pleos.car.permission.CAR_SEATS" />
     <!-- 기능 2: 변속 단(P단 = 하차). Vehicle SDK 에 없어 AAOS 표준 CarPropertyManager 로 읽는다(protection: normal) -->
     <uses-permission android:name="android.car.permission.CAR_POWERTRAIN" />
+    <!-- 기능 2: 내비 목적지 · 남은 거리 · 도착(목적지별 소지품 알림) -->
+    <uses-permission android:name="pleos.car.permission.NAVI_ROUTE" />
+    <!-- 기능 2: 소지품 알림을 말로(음성 출력) · 말로 등록(음성 인식). 둘 다 차 안 엔진만 쓴다 -->
+    <uses-permission android:name="pleos.car.permission.TTS_SERVICE" />
+    <uses-permission android:name="pleos.car.permission.STT_SERVICE" />
 
     <application
         android:name=".HaidaApplication"

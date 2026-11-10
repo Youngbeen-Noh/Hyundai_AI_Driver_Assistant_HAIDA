@@ -17,9 +17,10 @@ enum class Gear { PARK, REVERSE, NEUTRAL, DRIVE }
 data class Ride(val name: String, val seat: Seat, val at: LocalDateTime)
 
 /**
- * 차에 두었다고 말한 물건.
+ * 이번에만 챙길 물건(임시 소지품). 챙겼다고 하면 지운다.
  * @property place "트렁크" 같은 위치. 말하지 않았으면 null
  * @property due 챙길 날. 말하지 않았으면 null(다음 하차 때 바로 알린다)
+ * @property owner 동승자의 물건이면 그 사람 이름. 운전자(나)의 물건이면 null
  */
 data class Belonging(
     val id: Long,
@@ -27,13 +28,21 @@ data class Belonging(
     val place: String?,
     val due: LocalDate?,
     val addedAt: LocalDateTime,
+    val owner: String? = null,
 )
+
+/**
+ * 목적지마다 늘 챙길 것. 예: 회사 → 텀블러 · 사원증 · 지갑. 챙겼다고 해도 지우지 않는다.
+ * @property place 내비 즐겨찾기 이름("회사" · "집")이거나 목적지 이름에 들어 있는 말("헬스장")
+ */
+data class Routine(val place: String, val items: List<String>)
 
 /** 차 안에만 저장하는 기억 전체. 서버로 보내지 않는다(기능계획서 4장 원칙). */
 data class MemoryData(
     val rides: List<Ride> = emptyList(),
     val belongings: List<Belonging> = emptyList(),
     val nextBelongingId: Long = 1,
+    val routines: List<Routine> = emptyList(),
 )
 
 /** 기억을 저장하는 곳. 앱에서는 기기 내부 파일, 테스트에서는 메모리. */
