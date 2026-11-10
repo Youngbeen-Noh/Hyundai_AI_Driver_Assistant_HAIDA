@@ -36,6 +36,9 @@ import kr.contest.pleosassistant.status.StatusReport
 import kr.contest.pleosassistant.ui.common.Haida
 import kr.contest.pleosassistant.ui.common.HaidaIcons
 import kr.contest.pleosassistant.ui.common.HaidaType
+import kr.contest.pleosassistant.ui.music.MusicActions
+import kr.contest.pleosassistant.ui.music.MusicScreen
+import kr.contest.pleosassistant.ui.music.MusicUi
 import kr.contest.pleosassistant.ui.status.VehicleStatusScreen
 
 // 앱 틀: 팀 UI 프로토타입의 왼쪽 메뉴(.dock, 너비 128, 브랜드 연한 색)와 화면 영역(.main).
@@ -43,10 +46,11 @@ import kr.contest.pleosassistant.ui.status.VehicleStatusScreen
 
 private enum class Destination(val label: String, val icon: ImageVector) {
     CAR("차량", HaidaIcons.Car),
+    MUSIC("음악", HaidaIcons.Music),
 }
 
 @Composable
-fun HaidaApp(status: StatusReport) {
+fun HaidaApp(status: StatusReport, music: MusicUi, musicActions: MusicActions) {
     var current by rememberSaveable { mutableStateOf(Destination.CAR) }
 
     Row(modifier = Modifier.fillMaxSize().background(Haida.colors.l0)) {
@@ -60,6 +64,8 @@ fun HaidaApp(status: StatusReport) {
             when (current) {
                 // 변속 단(주행 중 화면)은 기능 2 PR 에서 CabinSource 로 연결한다
                 Destination.CAR -> VehicleStatusScreen(status, driving = false)
+                // 주행 중 화면(버튼 3개 · 다음 곡 하나)도 변속 단이 연결되면 driving 으로 켠다
+                Destination.MUSIC -> MusicScreen(music, driving = false, actions = musicActions)
             }
         }
     }
