@@ -11,5 +11,14 @@
                 <action android:name="kr.contest.pleosassistant.DEBUG_MUSIC" />
             </intent-filter>
         </receiver>
+        <!-- 기능 4: 브리핑 시작 조건(목적지 없이 달린 시간) -->
+        <receiver
+            android:name=".BriefingDebugReceiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP">
+            <intent-filter>
+                <action android:name="kr.contest.pleosassistant.DEBUG_BRIEFING" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>

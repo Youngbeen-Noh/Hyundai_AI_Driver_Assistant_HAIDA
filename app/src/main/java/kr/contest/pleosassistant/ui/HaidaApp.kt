@@ -36,6 +36,9 @@ import kr.contest.pleosassistant.status.StatusReport
 import kr.contest.pleosassistant.ui.common.Haida
 import kr.contest.pleosassistant.ui.common.HaidaIcons
 import kr.contest.pleosassistant.ui.common.HaidaType
+import kr.contest.pleosassistant.ui.briefing.BriefingActions
+import kr.contest.pleosassistant.ui.briefing.BriefingScreen
+import kr.contest.pleosassistant.ui.briefing.BriefingUi
 import kr.contest.pleosassistant.ui.music.MusicActions
 import kr.contest.pleosassistant.ui.music.MusicScreen
 import kr.contest.pleosassistant.ui.music.MusicUi
@@ -47,17 +50,31 @@ import kr.contest.pleosassistant.ui.status.VehicleStatusScreen
 private enum class Destination(val label: String, val icon: ImageVector) {
     CAR("차량", HaidaIcons.Car),
     MUSIC("음악", HaidaIcons.Music),
+    NEWS("브리핑", HaidaIcons.News),
 }
 
 @Composable
-fun HaidaApp(status: StatusReport, music: MusicUi, musicActions: MusicActions) {
+fun HaidaApp(
+    status: StatusReport,
+    music: MusicUi,
+    musicActions: MusicActions,
+    briefing: BriefingUi,
+    briefingActions: BriefingActions,
+) {
     var current by rememberSaveable { mutableStateOf(Destination.CAR) }
 
     Row(modifier = Modifier.fillMaxSize().background(Haida.colors.l0)) {
         Dock(
             current = current,
             // 다른 화면에 있을 때 차에 주의할 것이 있으면 점으로 알린다
-            badge = { it == Destination.CAR && status.overall.severity > 0 },
+            // 브리핑을 듣는 중이면 브리핑 메뉴에도 점을 찍는다
+            badge = {
+                when (it) {
+                    Destination.CAR -> status.overall.severity > 0
+                    Destination.MUSIC -> false
+                    Destination.NEWS -> briefing.state.playing
+                }
+            },
             onSelect = { current = it },
         )
         Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
@@ -66,6 +83,7 @@ fun HaidaApp(status: StatusReport, music: MusicUi, musicActions: MusicActions) {
                 Destination.CAR -> VehicleStatusScreen(status, driving = false)
                 // 주행 중 화면(버튼 3개 · 다음 곡 하나)도 변속 단이 연결되면 driving 으로 켠다
                 Destination.MUSIC -> MusicScreen(music, driving = false, actions = musicActions)
+                Destination.NEWS -> BriefingScreen(briefing, driving = false, actions = briefingActions)
             }
         }
     }
