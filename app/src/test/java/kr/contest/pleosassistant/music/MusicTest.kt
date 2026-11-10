@@ -139,6 +139,18 @@ class MusicStateTest {
     }
 
     @Test
+    fun `건너뛴 장르의 곡은 남은 목록에서도 바로 뒤로 밀린다`() {
+        // 크루징: 신선도가 같으면 같은 점수라 id 순. 첫 곡과 같은 장르 곡을 다음 곡 자리에 둔다
+        val s0 = MusicState.start(catalog, MoodSignals(hour = 13))
+        val genre = s0.current!!.genre
+        val sameGenre = catalog.first { it.genre == genre && it.id != s0.current!!.id }
+        val s = s0.copy(queue = listOf(s0.current!!, sameGenre) + s0.upcoming.filterNot { it.genre == genre }.take(3))
+        val next = s.skip()
+        // 원래 바로 다음 곡이었지만, 남아 있던 4곡 중 맨 뒤로(그 뒤에는 새로 채운 곡 하나)
+        assertEquals(3, next.queue.indexOf(sameGenre))
+    }
+
+    @Test
     fun `저장하면 다음 추천에서 그 장르가 앞선다`() {
         var s = MusicState.start(catalog, MoodSignals(hour = 14, weather = Weather.RAIN))
         val liked = s.upcoming.last()

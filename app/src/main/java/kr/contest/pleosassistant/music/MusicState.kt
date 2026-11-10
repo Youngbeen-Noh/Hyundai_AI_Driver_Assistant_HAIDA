@@ -39,7 +39,7 @@ data class MusicState(
     /** '다음' 버튼: 건너뛴 곡의 장르 선호도를 낮추고 다음 곡으로 */
     fun skip(): MusicState {
         val now = current ?: return this
-        return advance(taste.skipped(now))
+        return advance(taste.skipped(now), rerank = true)
     }
 
     /** 곡이 끝까지 재생됐다(음악 앱이 다음 곡으로 넘어감). 선호도는 바꾸지 않는다 */
@@ -55,8 +55,13 @@ data class MusicState(
 
     fun consumeAnnouncement(): MusicState = copy(announcement = null)
 
-    private fun advance(updated: Taste): MusicState {
-        val rest = queue.drop(1)
+    /**
+     * @param rerank 건너뛰었을 때는 남은 곡을 바뀐 취향으로 다시 줄 세운다(건너뛴 장르가 바로 뒤로 밀린다).
+     *               끝까지 들었을 때는 순서를 그대로 둔다
+     */
+    private fun advance(updated: Taste, rerank: Boolean = false): MusicState {
+        val left = queue.drop(1)
+        val rest = if (rerank) left.sortedByDescending { scoreTrack(it, mood, updated) } else left
         val refill = recommend(catalog.filterNot { t -> t.id in rest.map { it.id } || t.id == current?.id }, mood, updated, 1)
         val queue = rest + refill
         val played = queue.firstOrNull()?.let(updated::played) ?: updated

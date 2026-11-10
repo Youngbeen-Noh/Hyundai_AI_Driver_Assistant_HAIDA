@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -117,8 +116,8 @@ private fun NowPlaying(ui: MusicUi, actions: MusicActions, modifier: Modifier) {
                 Text(s.decision.reason, style = HaidaType.small, color = c.t2, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(32.dp)) {
-                // 남는 높이를 채우는 정사각형(size 는 부모 크기에 맞춰 줄어든다)
-                Box(Modifier.fillMaxHeight().aspectRatio(1f)) { Art(s.mood, 480.dp) }
+                // 앨범 그림은 고정 크기. 높이를 채우게 하면 글자 칸이 밀려 곡 이름이 안 보인다(에뮬레이터 확인)
+                Art(s.mood, 300.dp)
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(track?.title ?: "고를 곡이 없어요", style = HaidaType.hero, color = c.t1, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     Text(track?.artist.orEmpty(), style = HaidaType.body, color = c.t2, maxLines = 1)
