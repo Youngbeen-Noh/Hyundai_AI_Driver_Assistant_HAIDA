@@ -32,8 +32,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true">
-            <!-- 주행 중에도 화면을 띄운다(AAOS 운전 방해 제한). 없으면 D단에서 "주행 중에는 사용할 수 없습니다"로 가려져
-                 위험 구간 경고를 못 보여 준다. 주행 중 화면은 기능계획서 9장 원칙(큰 글씨 한 줄 · 버튼 3개 이하)을 지킨다 -->
+            <!-- 주행 중에도 화면을 보인다(AAOS 주행 중 제한). 주행 중에는 화면이 입력 · 편집을 숨기고 한 문장 · 큰 버튼만 남긴다 -->
             <meta-data
                 android:name="distractionOptimized"
                 android:value="true" />

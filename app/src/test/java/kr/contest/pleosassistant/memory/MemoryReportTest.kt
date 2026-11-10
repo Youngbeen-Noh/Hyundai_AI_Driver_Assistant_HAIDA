@@ -89,4 +89,63 @@ class MemoryReportTest {
         assertFalse(empty().onGear(Reading.Unsupported, now).report().parkAlertAvailable)
         assertTrue(empty().onGear(Reading.Value(Gear.PARK), now).report().parkAlertAvailable)
     }
+
+    @Test
+    fun `소지품 줄의 둘째 줄 - 위치와 언제 알릴지`() {
+        val rows = empty()
+            .addBelonging("내일 반납할 책 뒷자리에 뒀어", now)
+            .addBelonging("트렁크에 우산 넣었어", now)
+            .addBelonging("오늘 택배 챙겨", now)
+            .report().belongings
+        assertEquals("트렁크 · 도착 시 알림", rows.first { it.item == "우산" }.note)
+        assertEquals("뒷자리 · 내일 챙기기", rows.first { it.item == "반납할 책" }.note)
+        assertEquals("위치 모름 · 오늘 · 도착 시 알림", rows.first { it.item == "택배" }.note)
+    }
+
+    @Test
+    fun `하차 체크 목록 - 챙긴 것을 표시하고, 나중에 하면 표시한 것만 지운다`() {
+        val parked = empty()
+            .addBelonging("트렁크에 우산 넣었어", now)
+            .addBelonging("조수석에 지갑 뒀어", now)
+            .onGear(Reading.Value(Gear.DRIVE), now)
+            .onGear(Reading.Value(Gear.PARK), now)
+        assertEquals(listOf("우산", "지갑"), parked.report().arrivalItems.map { it.item })
+
+        val umbrella = parked.report().arrivalItems.first().id
+        val checked = parked.collect(umbrella)
+        assertEquals(listOf("우산", "지갑"), checked.report().arrivalItems.map { it.item })
+        assertEquals(setOf(umbrella), checked.report().arrivalDone)
+        assertEquals("조수석에 둔 지갑 챙기세요.", checked.report().arrivalMessage)
+        // 다시 누르면 표시를 끈다
+        assertTrue(checked.collect(umbrella).report().arrivalDone.isEmpty())
+        // 둘 다 챙기면 다 챙겼다고 말한다
+        val wallet = parked.report().arrivalItems.last().id
+        assertEquals(MemoryMessages.ALL_COLLECTED, checked.collect(wallet).report().arrivalMessage)
+
+        val later = checked.closeArrival(collected = false)
+        assertTrue(later.report().arrivalItems.isEmpty())
+        assertEquals(listOf("지갑"), later.report().belongings.map { it.item })
+    }
+
+    @Test
+    fun `동행 목록 - 최근에 탄 사람부터, 자주 탄 요일 · 시간대와 횟수`() {
+        // 2026-11-09 월, 11-13 금, 11-10 화
+        val rides = listOf(
+            Ride("민수", Seat.PASSENGER, LocalDateTime.of(2026, 11, 9, 8, 0)),
+            Ride("민수", Seat.PASSENGER, LocalDateTime.of(2026, 11, 13, 8, 10)),
+            Ride("민수", Seat.PASSENGER, LocalDateTime.of(2026, 11, 16, 7, 50)),
+            Ride("선우", Seat.REAR_LEFT, LocalDateTime.of(2026, 11, 17, 19, 0)),
+        )
+        assertEquals(
+            listOf(PersonRow("선우", "화 저녁 · 1번 탔어요"), PersonRow("민수", "월·금 오전 · 3번 탔어요")),
+            people(rides),
+        )
+    }
+
+    @Test
+    fun `다 잊어줘 확인 문장은 받침에 맞는 조사를 쓴다`() {
+        assertEquals("동행 2명과 소지품 3개를 지울까요?", MemoryMessages.forgetQuestion(2, 3))
+        assertEquals("동행 1명을 지울까요?", MemoryMessages.forgetQuestion(1, 0))
+        assertEquals("소지품 2개를 지울까요?", MemoryMessages.forgetQuestion(0, 2))
+    }
 }

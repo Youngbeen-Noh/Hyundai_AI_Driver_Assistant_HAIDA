@@ -4,41 +4,33 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AirlineSeatReclineNormal
-import androidx.compose.material.icons.filled.Backpack
-import androidx.compose.material.icons.filled.DeleteSweep
-import androidx.compose.material.icons.filled.Inventory2
-import androidx.compose.material.icons.filled.LocalCafe
-import androidx.compose.material.icons.filled.Luggage
-import androidx.compose.material.icons.filled.People
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.PersonOutline
-import androidx.compose.material.icons.filled.RecordVoiceOver
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -46,358 +38,451 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kr.contest.pleosassistant.memory.BelongingRow
 import kr.contest.pleosassistant.memory.MemoryMessages
 import kr.contest.pleosassistant.memory.MemoryReport
+import kr.contest.pleosassistant.memory.PersonRow
 import kr.contest.pleosassistant.memory.Question
-import kr.contest.pleosassistant.memory.Seat
-import kr.contest.pleosassistant.memory.SeatCard
-import kr.contest.pleosassistant.memory.SeatTone
-import kr.contest.pleosassistant.ui.common.BigButton
+import kr.contest.pleosassistant.ui.common.ButtonKind
+import kr.contest.pleosassistant.ui.common.ButtonShape
 import kr.contest.pleosassistant.ui.common.CardShape
+import kr.contest.pleosassistant.ui.common.CheckMark
+import kr.contest.pleosassistant.ui.common.Eyebrow
+import kr.contest.pleosassistant.ui.common.Haida
+import kr.contest.pleosassistant.ui.common.HaidaButton
+import kr.contest.pleosassistant.ui.common.HaidaCard
+import kr.contest.pleosassistant.ui.common.HaidaChip
+import kr.contest.pleosassistant.ui.common.HaidaIcons
+import kr.contest.pleosassistant.ui.common.HaidaTabs
+import kr.contest.pleosassistant.ui.common.HaidaTextField
+import kr.contest.pleosassistant.ui.common.HaidaType
+import kr.contest.pleosassistant.ui.common.HeaderSub
 import kr.contest.pleosassistant.ui.common.IconTile
-import kr.contest.pleosassistant.ui.common.Palette
+import kr.contest.pleosassistant.ui.common.PillShape
+import kr.contest.pleosassistant.ui.common.PillTone
 import kr.contest.pleosassistant.ui.common.ScreenHeader
-import kr.contest.pleosassistant.ui.common.SummaryBanner
+import kr.contest.pleosassistant.ui.common.Separator
+import kr.contest.pleosassistant.ui.common.StatusPill
+import kr.contest.pleosassistant.ui.common.TileTone
 
-// 임시 디자인. 팀 UI 템플릿을 받으면 이 파일만 바꾼다(MemoryReport · MemoryActions 는 그대로).
+// 팀 UI 프로토타입(수정본)의 '동승자·소지품' 화면. 본문 1474 × 1110 기준 왼쪽 좌석 현황 760, 오른쪽 열 690.
+// - 오른쪽 위 카드(남는 높이): 지금 할 말 — 누가 탔는지 묻기 · 확인 · 요약 · 도착 진행
+// - 오른쪽 아래 카드(내용 높이): 기억 중인 소지품 · 도착 체크 목록
+// - '기억 관리' 탭: 동행 목록과 기록 지우기
+// 주행 중(P 가 아님)에는 탭 · 입력 · 고르기 · 소지품 카드 · 좌석 이름표를 숨기고 한 문장과 예/아니오만 남긴다.
+
+private val TRUNK_PLACES = setOf("트렁크", "프렁크")
 
 @Composable
-fun MemoryScreen(report: MemoryReport, actions: MemoryActions, modifier: Modifier = Modifier) {
-    var askForget by remember { mutableStateOf(false) }
+fun MemoryScreen(report: MemoryReport, driving: Boolean, actions: MemoryActions, modifier: Modifier = Modifier) {
+    var tab by rememberSaveable { mutableIntStateOf(0) }
+    val arriving = report.arrivalItems.isNotEmpty()
+    val managing = tab == 1 && !driving && !arriving
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(Palette.background)
-            .padding(horizontal = 48.dp, vertical = 40.dp),
-        verticalArrangement = Arrangement.spacedBy(32.dp),
-    ) {
-        ScreenHeader(Icons.Filled.People, "동승자 · 소지품 기억", "차 안에만 저장하고 밖으로 보내지 않아요") {
-            BigButton("다 잊어줘", onClick = { askForget = true }, color = Palette.urgent, filled = false, icon = Icons.Filled.DeleteSweep)
-        }
-        SummaryBanner(Icons.Filled.RecordVoiceOver, Palette.accent, report.summary)
+    Column(modifier = modifier.fillMaxSize()) {
+        ScreenHeader(
+            "동승자·소지품",
+            sub = {
+                if (arriving) {
+                    StatusPill("도착", PillTone.OK, icon = HaidaIcons.Pin)
+                    HeaderSub("챙길 것을 확인해요")
+                }
+            },
+            trailing = {
+                if (!driving) HaidaTabs(listOf("이번 탑승", "기억 관리"), if (arriving) 0 else tab, onSelect = { tab = it })
+            },
+        )
         Row(
-            modifier = Modifier.fillMaxWidth().weight(1f),
+            modifier = Modifier.weight(1f).padding(start = 40.dp, end = 40.dp, bottom = 24.dp),
             horizontalArrangement = Arrangement.spacedBy(24.dp),
         ) {
-            PassengerPanel(report, actions, Modifier.weight(1f).fillMaxHeight())
-            BelongingPanel(report, actions, Modifier.weight(1f).fillMaxHeight())
+            HaidaCard(modifier = Modifier.weight(760f).fillMaxHeight()) {
+                // 프로토타입 크기(760 × 1110)로 그리고 카드 크기에 맞춰 같은 비율로 줄이거나 키운다
+                BoxWithConstraints(Modifier.fillMaxSize()) {
+                    val fit = minOf(maxWidth / SEAT_MAP_WIDTH.dp, maxHeight / SEAT_MAP_HEIGHT.dp)
+                    SeatMap(
+                        seats = report.seats,
+                        eyebrow = if (arriving) "도착 · 트렁크와 뒷좌석을 확인해요" else "좌석 현황",
+                        trunkItems = report.belongings.filter { it.place in TRUNK_PLACES }.map { it.item },
+                        highlightTrunk = report.arrivalItems.any { it.place in TRUNK_PLACES },
+                        showLabels = !driving,
+                        onSeatClick = actions::askAgain,
+                        modifier = Modifier.align(Alignment.Center).graphicsLayer {
+                            scaleX = fit
+                            scaleY = fit
+                        },
+                    )
+                }
+            }
+            Column(modifier = Modifier.weight(690f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(24.dp)) {
+                when {
+                    managing -> ManagePanel(report, actions)
+                    arriving -> {
+                        NowCard { ArrivalProgress(report) }
+                        ArrivalChecklist(report, actions)
+                    }
+                    else -> {
+                        NowCard {
+                            when (val q = report.question) {
+                                is Question.Confirm -> ConfirmQuestion(q, actions)
+                                is Question.AskName -> if (driving) AskLater(q) else AskName(q, report.people, actions)
+                                null -> Headline("지금", report.summary)
+                            }
+                        }
+                        if (!driving) BelongingCard(report, actions)
+                    }
+                }
+            }
         }
     }
+}
 
-    if (askForget) {
-        ConfirmDialog(
-            title = "다 잊을까요?",
-            text = "동승자 이름 · 탑승 기록 · 소지품을 모두 지워요. 되돌릴 수 없어요.",
-            confirm = "다 잊어줘",
-            confirmColor = Palette.urgent,
-            onConfirm = {
-                actions.forgetAll()
-                askForget = false
-            },
-            onDismiss = { askForget = false },
+// ---- 위 카드: 지금 할 말 ----
+
+/** 남는 높이를 갖고 내용은 세로 가운데(#pp-mem) */
+@Composable
+private fun ColumnScope.NowCard(content: @Composable ColumnScope.() -> Unit) {
+    HaidaCard(modifier = Modifier.fillMaxWidth().weight(1f).heightIn(min = 400.dp)) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 40.dp, vertical = 36.dp),
+            verticalArrangement = Arrangement.Center,
+            content = content,
         )
     }
 }
 
-/** 하차(P단) 알림. 어느 탭에 있든 앱 위에 뜬다. */
 @Composable
-fun ArrivalDialog(message: String, actions: MemoryActions) {
-    ConfirmDialog(
-        title = "도착했어요",
-        text = message,
-        confirm = "다 챙겼어요",
-        dismiss = "나중에",
-        icon = Icons.Filled.Luggage,
-        onConfirm = { actions.closeArrival(collected = true) },
-        onDismiss = { actions.closeArrival(collected = false) },
+private fun Headline(eyebrow: String, text: String, note: String? = null) {
+    val c = Haida.colors
+    Eyebrow(eyebrow)
+    Text(text, style = HaidaType.hero, color = c.t1, modifier = Modifier.padding(top = 16.dp))
+    note?.let { Text(it, style = HaidaType.small, color = c.t3, modifier = Modifier.padding(top = 16.dp)) }
+}
+
+/** "오늘도 민수님이죠?" [맞아요] [아니에요] — 예/아니오라 주행 중에도 보인다 */
+@Composable
+private fun ConfirmQuestion(q: Question.Confirm, actions: MemoryActions) {
+    Headline(q.seat.label, q.text)
+    Row(modifier = Modifier.padding(top = 48.dp), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+        HaidaButton("맞아요", onClick = { actions.confirmPassenger(q.seat, isRight = true) }, kind = ButtonKind.PRIMARY, height = 96.dp, modifier = Modifier.weight(1f))
+        HaidaButton("아니에요", onClick = { actions.confirmPassenger(q.seat, isRight = false) }, height = 96.dp, modifier = Modifier.weight(1f))
+    }
+}
+
+/** 주행 중에는 고르기 · 입력을 숨기고 정차 후로 미룬다 */
+@Composable
+private fun AskLater(q: Question.AskName) {
+    Headline(q.seat.label, "누가 타셨어요?", "정차하면 눌러서 고를 수 있어요")
+}
+
+/** "누가 타셨어요?" 큰 선택 카드 2열(.pp-pick): 전에 탔던 사람 · 손님(기억 안 함) · 새 사람(이름 입력) */
+@Composable
+private fun AskName(q: Question.AskName, people: List<PersonRow>, actions: MemoryActions) {
+    val c = Haida.colors
+    var typing by remember(q.seat) { mutableStateOf(false) }
+    var name by remember(q.seat) { mutableStateOf("") }
+    val save = { if (name.isNotBlank()) actions.namePassenger(q.seat, name) }
+    val details = people.associate { it.name to it.detail }
+
+    Headline(q.seat.label, "누가 타셨어요?")
+    val picks = q.suggestions.map { suggestion ->
+        Pick(suggestion, details[suggestion].orEmpty(), avatar = suggestion.take(1)) { actions.namePassenger(q.seat, suggestion) }
+    } + listOf(
+        Pick("손님", "기억하지 않아요", icon = HaidaIcons.People) { actions.skipPassenger(q.seat) },
+        Pick("새 사람", "직접 입력", icon = HaidaIcons.Plus, selected = typing) { typing = !typing },
     )
-}
-
-// ---- 동승자 ----
-
-@Composable
-private fun PassengerPanel(report: MemoryReport, actions: MemoryActions, modifier: Modifier) {
-    Panel(modifier, scrollable = true) {
-        PanelTitle(Icons.Filled.AirlineSeatReclineNormal, "동승자", "좌석 센서로 누가 탔는지 알아요")
-        SeatMap(report.seats, onAskAgain = actions::askAgain)
-        report.question?.let { QuestionCard(it, actions) }
-    }
-}
-
-/** 위에서 본 좌석 배치. 한국 차라 운전석이 왼쪽 앞 */
-@Composable
-private fun SeatMap(seats: List<SeatCard>, onAskAgain: (Seat) -> Unit) {
-    val bySeat = seats.associateBy { it.seat }
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            SeatTile("운전석", "나", Palette.ok, Icons.Filled.Person, Modifier.weight(1f))
-            bySeat[Seat.PASSENGER]?.let { PassengerSeatTile(it, onAskAgain, Modifier.weight(1f)) }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            bySeat[Seat.REAR_LEFT]?.let { PassengerSeatTile(it, onAskAgain, Modifier.weight(1f)) }
-            bySeat[Seat.REAR_RIGHT]?.let { PassengerSeatTile(it, onAskAgain, Modifier.weight(1f)) }
+    Column(modifier = Modifier.padding(top = 32.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        picks.chunked(2).forEach { pair ->
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                pair.forEach { PickCard(it, Modifier.weight(1f)) }
+                if (pair.size == 1) Spacer(Modifier.weight(1f))
+            }
         }
     }
-}
-
-@Composable
-private fun PassengerSeatTile(card: SeatCard, onAskAgain: (Seat) -> Unit, modifier: Modifier) {
-    val (color, icon) = when (card.tone) {
-        SeatTone.KNOWN -> Palette.accent to Icons.Filled.Person
-        SeatTone.ASKING -> Palette.caution to Icons.Filled.Person
-        SeatTone.UNNAMED -> Palette.accent to Icons.Filled.Person
-        SeatTone.EMPTY -> Palette.neutral to Icons.Filled.PersonOutline
-        SeatTone.OFF -> Palette.neutral to Icons.Filled.PersonOutline
+    if (typing) {
+        Row(modifier = Modifier.padding(bottom = 24.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            HaidaTextField(name, { name = it }, "이름", Modifier.weight(1f), onDone = save)
+            HaidaButton("기억하기", onClick = save, kind = ButtonKind.PRIMARY, enabled = name.isNotBlank())
+        }
     }
-    val hint = if (card.tone == SeatTone.UNNAMED) "눌러서 이름 알려 주기" else null
-    SeatTile(
-        label = card.seat.label,
-        status = card.status,
-        color = color,
-        icon = icon,
-        modifier = if (card.tone == SeatTone.UNNAMED) modifier.clickable { onAskAgain(card.seat) } else modifier,
-        hint = hint,
-        dim = card.tone == SeatTone.OFF,
-    )
+    Text("눌러서 알려 주세요. 처음 한 번만 물어봐요.", style = HaidaType.small, color = c.t3)
 }
 
+private class Pick(
+    val title: String,
+    val sub: String,
+    val avatar: String? = null,
+    val icon: ImageVector? = null,
+    val selected: Boolean = false,
+    val onClick: () -> Unit,
+)
+
 @Composable
-private fun SeatTile(
-    label: String,
-    status: String,
-    color: Color,
-    icon: ImageVector,
-    modifier: Modifier,
-    hint: String? = null,
-    dim: Boolean = false,
-) {
-    val shape = RoundedCornerShape(24.dp)
-    val active = color != Palette.neutral
+private fun PickCard(pick: Pick, modifier: Modifier) {
+    val c = Haida.colors
     Row(
         modifier = modifier
-            .height(132.dp)
-            .clip(shape)
-            .background(if (active) color.copy(alpha = 0.08f) else Palette.background)
-            .border(if (active) 2.dp else 1.dp, if (active) color.copy(alpha = 0.6f) else Palette.cardBorder, shape)
+            .height(148.dp)
+            .clip(ButtonShape)
+            .background(if (pick.selected) c.acSoft else c.l2)
+            .border(if (pick.selected) 2.dp else 1.dp, if (pick.selected) c.ac else c.line2, ButtonShape)
+            .clickable(role = Role.Button, onClick = pick.onClick)
             .padding(horizontal = 24.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(20.dp),
     ) {
-        IconTile(icon, color, tileSize = 68, iconSize = 40)
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(label, color = Palette.textMuted, fontSize = 20.sp)
-            Text(
-                status,
-                color = if (dim) Palette.textMuted else Palette.text,
-                fontSize = 30.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            hint?.let { Text(it, color = color, fontSize = 18.sp) }
+        Box(
+            Modifier.size(72.dp).clip(CircleShape).background(if (pick.avatar != null) c.acSoft else c.l3),
+            contentAlignment = Alignment.Center,
+        ) {
+            pick.avatar?.let { Text(it, style = HaidaType.title, color = c.ac) }
+            pick.icon?.let { Icon(it, contentDescription = null, tint = c.t2, modifier = Modifier.size(36.dp)) }
         }
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun QuestionCard(question: Question, actions: MemoryActions) {
-    val shape = RoundedCornerShape(24.dp)
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(shape)
-            .background(Palette.caution.copy(alpha = 0.08f))
-            .border(2.dp, Palette.caution.copy(alpha = 0.6f), shape)
-            .padding(28.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp),
-    ) {
-        Text(question.seat.label, color = Palette.caution, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
-        Text(question.text, color = Palette.text, fontSize = 34.sp, fontWeight = FontWeight.Bold, lineHeight = 42.sp)
-        when (question) {
-            is Question.Confirm -> Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                BigButton("맞아요", onClick = { actions.confirmPassenger(question.seat, isRight = true) })
-                BigButton("아니에요", onClick = { actions.confirmPassenger(question.seat, isRight = false) }, filled = false)
-            }
-
-            is Question.AskName -> {
-                if (question.suggestions.isNotEmpty()) {
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        question.suggestions.forEach { name ->
-                            BigButton("${name}님", onClick = { actions.namePassenger(question.seat, name) }, filled = false)
-                        }
-                    }
-                }
-                var name by remember(question) { mutableStateOf("") }
-                val save = { if (name.isNotBlank()) actions.namePassenger(question.seat, name) }
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    InputField(name, { name = it }, "이름", Modifier.weight(1f), onDone = save)
-                    BigButton("기억하기", onClick = save, enabled = name.isNotBlank())
-                }
-                TextButton(onClick = { actions.skipPassenger(question.seat) }) {
-                    Text("건너뛰기", color = Palette.textMuted, fontSize = 22.sp)
-                }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(pick.title, style = HaidaType.title.copy(fontWeight = HaidaType.bodyBold.fontWeight), color = c.t1, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (pick.sub.isNotEmpty()) {
+                Text(pick.sub, style = HaidaType.small, color = c.t3, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp))
             }
         }
     }
 }
 
-// ---- 소지품 ----
+/** 도착: 남은 개수 · 진행 막대(.pp-prog) · n / N 챙김 */
+@Composable
+private fun ArrivalProgress(report: MemoryReport) {
+    val c = Haida.colors
+    val total = report.arrivalItems.size
+    val done = report.arrivalItems.count { it.id in report.arrivalDone }
+    Headline("도착했어요", MemoryMessages.arrivalLeft(total - done), "트렁크와 뒷좌석을 확인해 주세요")
+    Row(modifier = Modifier.padding(top = 48.dp).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        report.arrivalItems.forEach { row ->
+            Box(Modifier.weight(1f).height(16.dp).clip(RoundedCornerShape(8.dp)).background(if (row.id in report.arrivalDone) c.ac else c.l3))
+        }
+    }
+    Text(MemoryMessages.arrivalProgress(done, total), style = HaidaType.bodyBold, color = c.t2, modifier = Modifier.padding(top = 14.dp))
+}
+
+// ---- 아래 카드: 소지품 ----
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun BelongingPanel(report: MemoryReport, actions: MemoryActions, modifier: Modifier) {
+private fun BelongingCard(report: MemoryReport, actions: MemoryActions) {
+    val c = Haida.colors
     var text by rememberSaveable { mutableStateOf("") }
     val add = { if (text.isNotBlank() && actions.addBelonging(text)) text = "" }
 
-    Panel(modifier) {
-        PanelTitle(Icons.Filled.Luggage, "소지품", "말하듯 적으면 물건 · 위치 · 챙길 날을 기억해요")
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            InputField(text, { text = it }, "예: ${MemoryMessages.EXAMPLES.first()}", Modifier.weight(1f), onDone = add)
-            BigButton("기억하기", onClick = add, enabled = text.isNotBlank())
-        }
-        report.inputError?.let { Text(it, color = Palette.caution, fontSize = 22.sp) }
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text("예시", color = Palette.textMuted, fontSize = 20.sp, modifier = Modifier.padding(vertical = 10.dp))
-            MemoryMessages.EXAMPLES.forEach { example ->
-                Text(
-                    "“$example”",
-                    color = Palette.accent,
-                    fontSize = 20.sp,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(50))
-                        .background(Palette.accent.copy(alpha = 0.1f))
-                        .clickable { text = example }
-                        .padding(horizontal = 18.dp, vertical = 10.dp),
-                )
+    HaidaCard(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(horizontal = 40.dp, vertical = 36.dp)) {
+            Eyebrow("기억 중인 소지품")
+            if (report.belongings.isEmpty()) {
+                Text("기억한 물건이 없어요.", style = HaidaType.body, color = c.t3, modifier = Modifier.padding(vertical = 20.dp))
+            } else {
+                // 세 줄까지 보이고 나머지는 밀어서 본다
+                LazyColumn(modifier = Modifier.padding(top = 8.dp).heightIn(max = 372.dp)) {
+                    itemsIndexed(report.belongings, key = { _, row -> row.id }) { index, row ->
+                        if (index > 0) Separator()
+                        BelongingLine(row)
+                    }
+                }
             }
-        }
-
-        if (report.belongings.isEmpty()) {
-            Text("기억한 물건이 없어요.", color = Palette.textMuted, fontSize = 24.sp, modifier = Modifier.padding(top = 8.dp))
-        } else {
-            LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                items(report.belongings, key = { it.id }) { row -> BelongingItem(row, onCollect = { actions.collect(row.id) }) }
+            // 음성 등록 전까지는 글로 적는다
+            Row(
+                modifier = Modifier.padding(top = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                HaidaTextField(text, { text = it }, "예: ${MemoryMessages.EXAMPLES.first()}", Modifier.weight(1f), onDone = add)
+                HaidaButton("기억하기", onClick = add, kind = ButtonKind.PRIMARY, enabled = text.isNotBlank())
             }
-        }
-        if (!report.parkAlertAvailable) {
-            Text("이 차량은 P단 신호를 읽을 수 없어 하차 알림을 못 해요.", color = Palette.textMuted, fontSize = 20.sp)
+            report.inputError?.let { Text(it, style = HaidaType.small, color = c.warn, modifier = Modifier.padding(top = 12.dp)) }
+            FlowRow(
+                modifier = Modifier.padding(top = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                MemoryMessages.EXAMPLES.forEach { example ->
+                    HaidaChip("“$example”", onClick = { text = example }, small = true, height = 64.dp)
+                }
+            }
+            Text(
+                if (report.parkAlertAvailable) "도착하면 챙길 것을 알려 드려요" else "이 차는 P단 신호를 읽을 수 없어 하차 알림을 못 해요",
+                style = HaidaType.small,
+                color = c.t3,
+                modifier = Modifier.padding(top = 20.dp),
+            )
         }
     }
 }
 
+/** 소지품 한 줄(.chk): 아이콘 칸 72 · 이름 32 · 둘째 줄 */
 @Composable
-private fun BelongingItem(row: BelongingRow, onCollect: () -> Unit) {
-    val shape = RoundedCornerShape(20.dp)
-    val color = if (row.remindNow) Palette.accent else Palette.neutral
+private fun BelongingLine(row: BelongingRow, check: (@Composable () -> Unit)? = null, done: Boolean = false, onClick: (() -> Unit)? = null) {
+    val c = Haida.colors
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(shape)
-            .background(Palette.background)
-            .border(1.dp, Palette.cardBorder, shape)
-            .padding(horizontal = 24.dp, vertical = 18.dp),
+            .then(if (onClick != null) Modifier.clickable(role = Role.Checkbox, onClickLabel = "챙겼어요", onClick = onClick) else Modifier)
+            .padding(vertical = 24.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(20.dp),
+        horizontalArrangement = Arrangement.spacedBy(24.dp),
     ) {
-        IconTile(placeIcon(row.place), color, tileSize = 64, iconSize = 36)
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(row.item, color = Palette.text, fontSize = 30.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            val where = row.place ?: "위치 모름"
-            val due = row.dueLabel?.let { " · $it 챙기기" }.orEmpty()
-            Text(where + due, color = Palette.textMuted, fontSize = 20.sp)
+        IconTile(itemIcon(row.item), TileTone.NEUTRAL, size = 72.dp, iconSize = 38.dp, radius = 12.dp)
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                row.item,
+                style = HaidaType.title.copy(fontWeight = HaidaType.bodyBold.fontWeight, textDecoration = if (done) TextDecoration.LineThrough else null),
+                color = if (done) c.t3 else c.t1,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(row.note, style = HaidaType.small, color = c.t3, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        BigButton("챙겼어요", onClick = onCollect, filled = false)
+        check?.invoke()
     }
 }
 
-private fun placeIcon(place: String?): ImageVector = when (place) {
-    "트렁크", "프렁크" -> Icons.Filled.Luggage
-    "뒷자리", "조수석", "운전석" -> Icons.Filled.AirlineSeatReclineNormal
-    "글로브박스", "콘솔" -> Icons.Filled.Inventory2
-    "컵홀더" -> Icons.Filled.LocalCafe
-    else -> Icons.Filled.Backpack
+private fun itemIcon(item: String): ImageVector = when {
+    "우산" in item -> HaidaIcons.Umbrella
+    "책" in item -> HaidaIcons.Book
+    else -> HaidaIcons.Bag
 }
 
-// ---- 공통 조각 ----
+/** 도착 체크 목록: 하나씩 눌러 챙김 표시, [다 챙겼어요] · [나중에 알려줘] */
+@Composable
+private fun ArrivalChecklist(report: MemoryReport, actions: MemoryActions) {
+    HaidaCard(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(horizontal = 40.dp, vertical = 36.dp)) {
+            Eyebrow("챙길 것")
+            LazyColumn(modifier = Modifier.padding(top = 8.dp).heightIn(max = 372.dp)) {
+                itemsIndexed(report.arrivalItems, key = { _, row -> row.id }) { index, row ->
+                    if (index > 0) Separator()
+                    val done = row.id in report.arrivalDone
+                    BelongingLine(row, check = { CheckMark(done) }, done = done, onClick = { actions.collect(row.id) })
+                }
+            }
+            Row(modifier = Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                HaidaButton("다 챙겼어요", onClick = { actions.closeArrival(collected = true) }, kind = ButtonKind.PRIMARY, height = 96.dp, modifier = Modifier.weight(1f))
+                HaidaButton("나중에 알려줘", onClick = { actions.closeArrival(collected = false) }, height = 96.dp, modifier = Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+// ---- 기억 관리 ----
 
 @Composable
-private fun Panel(modifier: Modifier, scrollable: Boolean = false, content: @Composable ColumnScope.() -> Unit) {
-    val framed = modifier
-        .clip(CardShape)
-        .background(Palette.card)
-        .border(1.dp, Palette.cardBorder, CardShape)
+private fun ColumnScope.ManagePanel(report: MemoryReport, actions: MemoryActions) {
+    val c = Haida.colors
+    var confirming by remember { mutableStateOf(false) }
+    val nothing = report.people.isEmpty() && report.belongings.isEmpty()
+
+    Row(modifier = Modifier.fillMaxWidth().height(64.dp).padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Eyebrow("기억 관리 · 정차 중에만 수정")
+        Spacer(Modifier.weight(1f))
+        if (!nothing && !confirming) {
+            HaidaChip("동행 기록 지우기", onClick = { confirming = true }, small = true, danger = true, icon = HaidaIcons.Close, height = 64.dp)
+        }
+    }
+    if (confirming) {
+        HaidaCard(modifier = Modifier.fillMaxWidth().height(600.dp), inset = true) {
+            Column(modifier = Modifier.padding(48.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text(MemoryMessages.forgetQuestion(report.people.size, report.belongings.size), style = HaidaType.sentence, color = c.t1)
+                Text("이름 · 탑승 기록 · 소지품을 모두 지워요.\n되돌릴 수 없어요.", style = HaidaType.body, color = c.t2)
+                Spacer(Modifier.weight(1f))
+                Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                    HaidaButton(
+                        "지우기",
+                        onClick = {
+                            actions.forgetAll()
+                            confirming = false
+                        },
+                        kind = ButtonKind.DANGER,
+                        icon = HaidaIcons.Close,
+                        height = 96.dp,
+                        modifier = Modifier.weight(1f),
+                    )
+                    HaidaButton("취소", onClick = { confirming = false }, kind = ButtonKind.PRIMARY, height = 96.dp, modifier = Modifier.weight(1f))
+                }
+            }
+        }
+        return
+    }
+    if (report.people.isEmpty()) {
+        HaidaCard(modifier = Modifier.fillMaxWidth().height(280.dp)) {
+            Text(
+                "아직 기억한 동행이 없어요.\n누가 탔는지 알려 주면 여기에 모여요.",
+                style = HaidaType.body,
+                color = c.t2,
+                modifier = Modifier.align(Alignment.CenterStart).padding(horizontal = 32.dp),
+            )
+        }
+    } else {
+        // 세 명씩 한 줄, 두 줄을 넘으면 밀어서 본다
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(3),
+            modifier = Modifier.heightIn(max = 580.dp),
+            horizontalArrangement = Arrangement.spacedBy(20.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
+        ) {
+            items(report.people, key = { it.name }) { PersonCard(it) }
+        }
+    }
+    HaidaCard(modifier = Modifier.fillMaxWidth().weight(1f), inset = true) {
+        Column(modifier = Modifier.padding(horizontal = 36.dp, vertical = 16.dp)) {
+            val items = report.belongings.map { it.item }
+            ManageRow("소지품 기록", items.joinToString(" · ").ifEmpty { "없음" }, HaidaIcons.Bag, "${items.size}개")
+            Separator()
+            ManageRow("저장 위치", "이 차량 안 · 밖으로 보내지 않아요", HaidaIcons.Lock, "로컬")
+        }
+    }
+}
+
+/** 동행 한 명(.pcard): 머리글자 동그라미 · 이름 · 자주 탄 때 */
+@Composable
+private fun PersonCard(person: PersonRow) {
+    val c = Haida.colors
     Column(
-        modifier = (if (scrollable) framed.verticalScroll(rememberScrollState()) else framed).padding(32.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp),
-        content = content,
-    )
-}
-
-@Composable
-private fun PanelTitle(icon: ImageVector, title: String, subtitle: String) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-        IconTile(icon, Palette.accent, tileSize = 56, iconSize = 32)
-        Column {
-            Text(title, color = Palette.text, fontSize = 30.sp, fontWeight = FontWeight.Bold)
-            Text(subtitle, color = Palette.textMuted, fontSize = 20.sp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(280.dp)
+            .clip(CardShape)
+            .background(c.l1)
+            .border(1.dp, c.line, CardShape)
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Box(Modifier.size(72.dp).clip(CircleShape).background(c.acSoft), contentAlignment = Alignment.Center) {
+            Text(person.name.take(1), style = HaidaType.title, color = c.ac)
         }
+        Text(person.name, style = HaidaType.title.copy(fontSize = 30.sp, lineHeight = 37.sp, fontWeight = HaidaType.bodyBold.fontWeight), color = c.t1, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        // "월·금 오전 · 3번 탔어요" → 자주 탄 때와 횟수를 두 줄로
+        Text(person.detail.replace(" · ", "\n"), style = HaidaType.small, color = c.t3, maxLines = 3, overflow = TextOverflow.Ellipsis)
     }
 }
 
+/** 기억 관리 목록 한 줄(.set-row): 이름 · 설명 · 오른쪽 꼬리표 */
 @Composable
-private fun InputField(value: String, onChange: (String) -> Unit, placeholder: String, modifier: Modifier, onDone: () -> Unit) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onChange,
-        modifier = modifier,
-        singleLine = true,
-        placeholder = { Text(placeholder, fontSize = 24.sp, color = Palette.textMuted, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-        textStyle = TextStyle(fontSize = 26.sp, color = Palette.text),
-        shape = RoundedCornerShape(18.dp),
-        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-        keyboardActions = KeyboardActions(onDone = { onDone() }),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = Palette.accent,
-            unfocusedBorderColor = Palette.cardBorder,
-            cursorColor = Palette.accent,
-            focusedTextColor = Palette.text,
-            unfocusedTextColor = Palette.text,
-        ),
-    )
-}
-
-@Composable
-private fun ConfirmDialog(
-    title: String,
-    text: String,
-    confirm: String,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit,
-    dismiss: String = "취소",
-    confirmColor: Color = Palette.accent,
-    icon: ImageVector? = null,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = Palette.card,
-        icon = icon?.let { { IconTile(it, Palette.accent, tileSize = 72, iconSize = 42) } },
-        title = { Text(title, color = Palette.text, fontSize = 34.sp, fontWeight = FontWeight.Bold) },
-        text = { Text(text, color = Palette.text, fontSize = 28.sp, lineHeight = 38.sp) },
-        confirmButton = { BigButton(confirm, onClick = onConfirm, color = confirmColor) },
-        dismissButton = { BigButton(dismiss, onClick = onDismiss, color = Palette.textMuted, filled = false) },
-    )
+private fun ManageRow(title: String, sub: String, tagIcon: ImageVector, tag: String) {
+    val c = Haida.colors
+    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 26.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, style = HaidaType.bodyBold, color = c.t1)
+            Text(sub, style = HaidaType.small, color = c.t3, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        Row(
+            modifier = Modifier.height(44.dp).clip(PillShape).background(c.l3).padding(horizontal = 20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Icon(tagIcon, contentDescription = null, tint = c.t2, modifier = Modifier.size(24.dp))
+            Text(tag, style = HaidaType.smallBold, color = c.t2)
+        }
+    }
 }

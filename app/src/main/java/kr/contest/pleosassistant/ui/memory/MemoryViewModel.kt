@@ -23,6 +23,7 @@ import kr.contest.pleosassistant.memory.buildMemoryReport
 import kr.contest.pleosassistant.memory.closeArrival
 import kr.contest.pleosassistant.memory.collect
 import kr.contest.pleosassistant.memory.confirmPassenger
+import kr.contest.pleosassistant.memory.driving
 import kr.contest.pleosassistant.memory.forgetAll
 import kr.contest.pleosassistant.memory.namePassenger
 import kr.contest.pleosassistant.memory.onGear
@@ -32,7 +33,7 @@ import kr.contest.pleosassistant.status.Reading
 import kr.contest.pleosassistant.vehicle.CabinSource
 import java.time.LocalDateTime
 
-/** 화면에서 누르는 것들. 팀 UI 템플릿으로 바꿔도 이 목록은 그대로 쓴다. */
+/** 화면에서 누르는 것들 */
 interface MemoryActions {
     fun confirmPassenger(seat: Seat, isRight: Boolean)
     fun namePassenger(seat: Seat, name: String)
@@ -61,6 +62,12 @@ class MemoryViewModel(
     val report: StateFlow<MemoryReport> = state
         .map { buildMemoryReport(it, now().toLocalDate()) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, buildMemoryReport(state.value, now().toLocalDate()))
+
+    /** 주행 중(P 가 아님)이면 true. 앱 전체 화면이 입력 · 편집을 숨기는 데 쓴다. */
+    val driving: StateFlow<Boolean> = state
+        .map { it.driving }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, state.value.driving)
 
     init {
         Seat.entries.forEach { seat ->
