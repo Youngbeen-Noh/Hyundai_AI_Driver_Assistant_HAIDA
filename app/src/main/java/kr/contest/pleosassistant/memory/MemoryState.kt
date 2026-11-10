@@ -179,6 +179,13 @@ fun MemoryState.onGear(reading: Reading<Gear>, now: LocalDateTime): MemoryState 
     return copy(gear = kept, arrival = due.ifEmpty { arrival })
 }
 
+/**
+ * 주행 중인지. 팀 UI 규칙: 정차 = P 단(신호 대기도 주행으로 친다). 주행 중이면 입력 · 편집을 숨긴다.
+ * 단을 읽지 못하는 차는 정차로 보고 화면을 모두 보여 준다(값을 잠깐 못 읽으면 onGear 가 마지막 단을 기억한다).
+ */
+val MemoryState.driving: Boolean
+    get() = (gear as? Reading.Value)?.value.let { it != null && it != Gear.PARK }
+
 /** 하차 알림을 닫는다. collected 면 알린 물건을 지운다("다 챙겼어요"). */
 fun MemoryState.closeArrival(collected: Boolean): MemoryState {
     val ids = arrival ?: return this

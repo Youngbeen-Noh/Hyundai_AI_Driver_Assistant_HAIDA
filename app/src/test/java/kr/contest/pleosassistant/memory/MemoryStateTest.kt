@@ -2,6 +2,7 @@ package kr.contest.pleosassistant.memory
 
 import kr.contest.pleosassistant.status.Reading
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -183,5 +184,16 @@ class MemoryStateTest {
         assertEquals(MemoryData(), state.data)
         assertEquals(SeatState.Asking(tue0830, emptyList()), state.seats[Seat.PASSENGER])
         assertEquals(SeatState.Empty, state.seats[Seat.REAR_LEFT])
+    }
+
+    @Test
+    fun `P 가 아니면 주행 중이고, 단을 모르면 정차로 본다`() {
+        assertTrue(ready().onGear(Reading.Value(Gear.DRIVE), tue0830).driving)
+        assertTrue(ready().onGear(Reading.Value(Gear.REVERSE), tue0830).driving)
+        assertFalse(ready().onGear(Reading.Value(Gear.PARK), tue0830).driving)
+        assertFalse(ready().driving)
+        assertFalse(ready().onGear(Reading.Unsupported, tue0830).driving)
+        // 달리다가 값을 잠깐 못 읽어도 주행 중으로 둔다
+        assertTrue(ready().onGear(Reading.Value(Gear.DRIVE), tue0830).onGear(Reading.Unavailable, tue0830).driving)
     }
 }

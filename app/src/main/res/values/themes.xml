@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.PleosAiAssistant" parent="android:Theme.Material.NoActionBar" />
+    <!-- 창 바탕은 팀 UI 프로토타입의 앱 바탕색(L0). 화면이 그려지기 전 깜빡임을 줄인다. -->
+    <style name="Theme.PleosAiAssistant" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/haida_l0</item>
+    </style>
 </resources>

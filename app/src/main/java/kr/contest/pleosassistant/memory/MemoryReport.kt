@@ -3,7 +3,7 @@ package kr.contest.pleosassistant.memory
 import kr.contest.pleosassistant.status.Reading
 import java.time.LocalDate
 
-/** 화면이 그대로 그리는 기능 2 결과. 팀 UI 템플릿을 받아도 이 모양은 그대로 둔다. */
+/** 화면이 그대로 그리는 기능 2 결과 */
 data class MemoryReport(
     /** 맨 위 한 문장. 예: "민수님 타셨네요. 트렁크에 둔 택배도 잊지 마세요." */
     val summary: String,
@@ -16,7 +16,14 @@ data class MemoryReport(
     val arrivalMessage: String?,
     /** P단 신호를 읽을 수 있어 하차 알림이 동작하는지 */
     val parkAlertAvailable: Boolean,
+    /** 하차 알림에서 챙길 물건(체크 목록). 알림이 없으면 빈 목록 */
+    val arrivalItems: List<BelongingRow>,
+    /** 동행 관리: 탄 적 있는 사람, 최근에 탄 사람부터 */
+    val people: List<PersonRow>,
 )
+
+/** @property detail 자주 탄 요일 · 시간대와 횟수. 예: "월·금 오전 · 3번 탔어요" */
+data class PersonRow(val name: String, val detail: String)
 
 enum class SeatTone { KNOWN, ASKING, UNNAMED, EMPTY, OFF }
 
@@ -30,13 +37,17 @@ sealed interface Question {
     data class AskName(override val seat: Seat, val suggestions: List<String>, override val text: String) : Question
 }
 
-/** @property remindNow 다음 하차 때 알릴 물건인지(챙길 날이 없거나 오늘 · 지난 날) */
+/**
+ * @property remindNow 다음 하차 때 알릴 물건인지(챙길 날이 없거나 오늘 · 지난 날)
+ * @property note 목록 둘째 줄. 예: "트렁크 · 도착 시 알림", "뒷자리 · 내일 챙기기"
+ */
 data class BelongingRow(
     val id: Long,
     val item: String,
     val place: String?,
     val dueLabel: String?,
     val remindNow: Boolean,
+    val note: String,
 )
 
 object MemoryMessages {
@@ -48,6 +59,15 @@ object MemoryMessages {
     fun ask(seat: Seat) = "${seat.label}에 누가 타셨어요?"
     fun confirm(name: String) = "오늘도 ${name}님이죠?"
     fun remembered(count: Int) = "물건 ${count}개를 기억하고 있어요."
+    fun arrivalLeft(count: Int) = if (count > 0) "챙길 것 ${count}개 남았어요" else "다 챙겼어요"
+
+    /** 동행 관리의 지우기 확인. 받침에 맞춰 조사를 고른다(명 → 과 · 을, 개 → 를). */
+    fun forgetQuestion(people: Int, items: Int): String = when {
+        people > 0 && items > 0 -> "동행 ${people}명과 소지품 ${items}개를 지울까요?"
+        people > 0 -> "동행 ${people}명을 지울까요?"
+        items > 0 -> "소지품 ${items}개를 지울까요?"
+        else -> "지울 기억이 없어요."
+    }
 }
 
 fun buildMemoryReport(state: MemoryState, today: LocalDate): MemoryReport {
@@ -62,6 +82,8 @@ fun buildMemoryReport(state: MemoryState, today: LocalDate): MemoryReport {
         inputError = state.inputError,
         arrivalMessage = arrivalItems.takeIf { it.isNotEmpty() }?.let(::arrivalMessage),
         parkAlertAvailable = state.gear !is Reading.Unsupported,
+        arrivalItems = arrivalItems.map { it.toRow(today) },
+        people = people(state.data.rides),
     )
 }
 
@@ -92,13 +114,44 @@ internal fun summarize(state: MemoryState, today: LocalDate): String {
 
 private fun Belonging.describe(): String = place?.let { "${it}에 둔 $item" } ?: item
 
-private fun Belonging.toRow(today: LocalDate) = BelongingRow(
-    id = id,
-    item = item,
-    place = place,
-    dueLabel = due?.let { dueLabel(it, today) },
-    remindNow = due == null || !due.isAfter(today),
-)
+private fun Belonging.toRow(today: LocalDate): BelongingRow {
+    val label = due?.let { dueLabel(it, today) }
+    val remindNow = due == null || !due.isAfter(today)
+    val whenText = when {
+        label == null -> "도착 시 알림"
+        remindNow -> "$label · 도착 시 알림"
+        else -> "$label 챙기기"
+    }
+    return BelongingRow(id, item, place, label, remindNow, note = "${place ?: "위치 모름"} · $whenText")
+}
+
+/** 동행 관리 목록: 이름마다 자주 탄 요일 · 시간대와 횟수. 최근에 탄 사람부터 */
+internal fun people(rides: List<Ride>): List<PersonRow> = rides
+    .groupBy { it.name }
+    .entries
+    .sortedByDescending { (_, list) -> list.maxOf { it.at } }
+    .map { (name, list) -> PersonRow(name, personDetail(list)) }
+
+private val WEEKDAYS = listOf("월", "화", "수", "목", "금", "토", "일")
+
+private fun personDetail(rides: List<Ride>): String {
+    // 많이 탄 요일 두 개를 월 → 일 순서로
+    val days = rides.groupingBy { it.at.dayOfWeek }.eachCount().entries
+        .sortedWith(compareByDescending<Map.Entry<java.time.DayOfWeek, Int>> { it.value }.thenBy { it.key })
+        .take(2)
+        .map { it.key }
+        .sorted()
+        .joinToString("·") { WEEKDAYS[it.value - 1] }
+    val time = rides.groupingBy { timeOfDay(it.at.hour) }.eachCount().entries.maxBy { it.value }.key
+    return "$days $time · ${rides.size}번 탔어요"
+}
+
+private fun timeOfDay(hour: Int): String = when (hour) {
+    in 5..11 -> "오전"
+    in 12..17 -> "오후"
+    in 18..22 -> "저녁"
+    else -> "밤"
+}
 
 private fun dueLabel(due: LocalDate, today: LocalDate): String = when {
     due == today -> "오늘"
