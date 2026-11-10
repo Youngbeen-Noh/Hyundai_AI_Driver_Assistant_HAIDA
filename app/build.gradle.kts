@@ -13,6 +13,8 @@ android {
     // TODO(공모전 제출 전): 앱 이름이 정해지면 namespace / applicationId 를 바꾼다.
     namespace = "kr.contest.pleosassistant"
     compileSdk = targetAndroidSdk
+    // AAOS 표준 Car API(CarPropertyManager). 기능 2 의 변속 단(P단)은 Vehicle SDK 에 없어서 이것으로 읽는다.
+    useLibrary("android.car")
 
     defaultConfig {
         applicationId = "kr.contest.pleosassistant"

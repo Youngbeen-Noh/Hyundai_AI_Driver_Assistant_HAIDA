@@ -59,24 +59,13 @@ import kr.contest.pleosassistant.status.StatusItem
 import kr.contest.pleosassistant.status.StatusItemId
 import kr.contest.pleosassistant.status.StatusLevel
 import kr.contest.pleosassistant.status.StatusReport
+import kr.contest.pleosassistant.ui.common.CardShape
+import kr.contest.pleosassistant.ui.common.IconTile
+import kr.contest.pleosassistant.ui.common.Palette
+import kr.contest.pleosassistant.ui.common.ScreenHeader
+import kr.contest.pleosassistant.ui.common.SummaryBanner
 
-// 임시 디자인. 팀 UI 템플릿을 받으면 이 파일만 바꾼다(StatusReport 는 그대로).
-// 크기는 Pleos 에뮬레이터 앱 영역(약 1680 × 1210dp, 160dpi)에서 정차 중 한눈에 읽히도록 잡았다.
-
-private object Palette {
-    val background = Color(0xFF0E1116)
-    val card = Color(0xFF181C23)
-    val cardBorder = Color(0xFF262B34)
-    val text = Color(0xFFF2F4F7)
-    val textMuted = Color(0xFF9AA3AF)
-    val accent = Color(0xFF6EA8FE)
-    val ok = Color(0xFF3DD68C)
-    val caution = Color(0xFFFFB020)
-    val urgent = Color(0xFFFF5A52)
-    val neutral = Color(0xFF7D8590)
-}
-
-private val CardShape = RoundedCornerShape(28.dp)
+// 임시 디자인. 팀 UI 템플릿을 받으면 이 파일(과 ui/common)만 바꾼다(StatusReport 는 그대로).
 
 @Composable
 fun VehicleStatusScreen(report: StatusReport, modifier: Modifier = Modifier) {
@@ -93,8 +82,8 @@ fun VehicleStatusScreen(report: StatusReport, modifier: Modifier = Modifier) {
             .padding(horizontal = 48.dp, vertical = 40.dp),
         verticalArrangement = Arrangement.spacedBy(32.dp),
     ) {
-        Header()
-        SummaryBanner(report)
+        ScreenHeader(Icons.Filled.DirectionsCar, "차량 요약", "탑승할 때 차 상태를 한눈에 확인해요")
+        StatusBanner(report)
         LazyVerticalGrid(
             columns = GridCells.Fixed(3),
             horizontalArrangement = Arrangement.spacedBy(24.dp),
@@ -110,20 +99,8 @@ fun VehicleStatusScreen(report: StatusReport, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun Header() {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-        IconTile(Icons.Filled.DirectionsCar, Palette.accent, tileSize = 68, iconSize = 40)
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text("차량 요약", color = Palette.text, fontSize = 44.sp, fontWeight = FontWeight.Bold, lineHeight = 52.sp)
-            Text("탑승할 때 차 상태를 한눈에 확인해요", color = Palette.textMuted, fontSize = 22.sp)
-        }
-    }
-}
-
-@Composable
-private fun SummaryBanner(report: StatusReport) {
+private fun StatusBanner(report: StatusReport) {
     val level = report.overall
-    val color = level.color()
     val icon = when (level) {
         StatusLevel.URGENT -> Icons.Filled.Error
         StatusLevel.CAUTION -> Icons.Filled.Warning
@@ -131,24 +108,7 @@ private fun SummaryBanner(report: StatusReport) {
         StatusLevel.UNKNOWN -> Icons.Filled.Info
         else -> Icons.Filled.CheckCircle
     }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(CardShape)
-            .background(color.copy(alpha = 0.12f))
-            .border(1.5.dp, color.copy(alpha = 0.4f), CardShape)
-            .padding(horizontal = 36.dp, vertical = 28.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(28.dp),
-    ) {
-        Box(
-            modifier = Modifier.size(68.dp).clip(CircleShape).background(color.copy(alpha = 0.2f)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(icon, contentDescription = level.label, tint = color, modifier = Modifier.size(40.dp))
-        }
-        Text(report.summary, color = Palette.text, fontSize = 32.sp, fontWeight = FontWeight.SemiBold, lineHeight = 44.sp)
-    }
+    SummaryBanner(icon, level.color(), report.summary, contentDescription = level.label)
 }
 
 @Composable
@@ -223,19 +183,6 @@ private fun UnsupportedRow(items: List<StatusItem>) {
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun IconTile(icon: ImageVector, color: Color, tileSize: Int, iconSize: Int) {
-    Box(
-        modifier = Modifier
-            .size(tileSize.dp)
-            .clip(RoundedCornerShape((tileSize / 4).dp))
-            .background(color.copy(alpha = 0.16f)),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(iconSize.dp))
     }
 }
 

@@ -1,0 +1,197 @@
+package kr.contest.pleosassistant.memory
+
+import kr.contest.pleosassistant.status.Reading
+import java.time.LocalDate
+import java.time.LocalDateTime
+import kotlin.math.abs
+import kotlin.math.min
+
+/** 정한 값. 계획서에 숫자가 없어서 정했다(PR 본문 '범위 밖'에 적음). */
+object MemoryRules {
+    /** "같은 시간대": 전에 탄 시각과 이만큼(분) 안쪽이면 같은 패턴으로 본다 */
+    const val MATCH_WINDOW_MINUTES = 60
+
+    /** 탑승 기록은 최근 것만 남긴다 */
+    const val MAX_RIDES = 500
+
+    /** 이름 묻기에서 보여 줄 전에 탔던 사람 수 */
+    const val MAX_SUGGESTIONS = 4
+
+    const val MAX_NAME_LENGTH = 12
+}
+
+/**
+ * 기능 2 의 상태 전체. 함수마다 새 상태를 돌려준다(Android 와 Pleos SDK 에 기대지 않아 단위 테스트로 흐름을 확인한다).
+ * @property arrival 하차 알림에 띄운 물건 id. null 이면 알림 없음
+ * @property inputError 소지품 문장을 알아듣지 못했을 때 안내
+ */
+data class MemoryState(
+    val data: MemoryData = MemoryData(),
+    val seats: Map<Seat, SeatState> = Seat.entries.associateWith { SeatState.Checking },
+    val gear: Reading<Gear> = Reading.Loading,
+    val arrival: List<Long>? = null,
+    val inputError: String? = null,
+)
+
+// ---- 동승자 ----
+
+/** 좌석 센서 값이 바뀜. 비어 있던 좌석에 사람이 앉으면 누구인지 짐작하거나 묻는다. */
+fun MemoryState.onSeat(seat: Seat, reading: Reading<Boolean>, now: LocalDateTime): MemoryState {
+    val current = seats.getValue(seat)
+    val next = when (reading) {
+        Reading.Loading -> SeatState.Checking
+        Reading.Unsupported -> SeatState.Unsupported
+        Reading.Unavailable -> SeatState.Unknown
+        is Reading.Value -> when {
+            !reading.value -> SeatState.Empty
+            current.occupiedSince != null -> current
+            else -> boarding(seat, now)
+        }
+    }
+    return withSeat(seat, next)
+}
+
+/** "오늘도 ○○님이죠?" 에 대한 답 */
+fun MemoryState.confirmPassenger(seat: Seat, isRight: Boolean): MemoryState {
+    val current = seats.getValue(seat) as? SeatState.Confirming ?: return this
+    if (isRight) return remember(seat, current.name, current.since)
+    val suggestions = nameSuggestions(data.rides, seat, exclude = namesOnOtherSeats(seat) + current.name)
+    return withSeat(seat, SeatState.Asking(current.since, suggestions))
+}
+
+/** "조수석에 누가 타셨어요?" 에 대한 답. 이름이 비었거나 너무 길면 그대로 둔다. */
+fun MemoryState.namePassenger(seat: Seat, rawName: String): MemoryState {
+    val current = seats.getValue(seat) as? SeatState.Asking ?: return this
+    val name = normalizeName(rawName) ?: return this
+    return remember(seat, name, current.since)
+}
+
+fun MemoryState.skipPassenger(seat: Seat): MemoryState {
+    val current = seats.getValue(seat) as? SeatState.Asking ?: return this
+    return withSeat(seat, SeatState.Unnamed(current.since))
+}
+
+/** 건너뛴 좌석에 이름을 다시 묻는다 */
+fun MemoryState.askAgain(seat: Seat): MemoryState {
+    val current = seats.getValue(seat) as? SeatState.Unnamed ?: return this
+    return withSeat(seat, SeatState.Asking(current.since, nameSuggestions(data.rides, seat, exclude = namesOnOtherSeats(seat))))
+}
+
+/** 앞뒤 공백과 끝의 "님"을 뗀다. 비었거나 [MemoryRules.MAX_NAME_LENGTH] 보다 길면 null */
+fun normalizeName(raw: String): String? {
+    val name = raw.trim().removeSuffix("님").trim()
+    return name.takeIf { it.isNotEmpty() && it.length <= MemoryRules.MAX_NAME_LENGTH }
+}
+
+/**
+ * 이 좌석에 같은 요일, 앉은 시각 ±[MemoryRules.MATCH_WINDOW_MINUTES]분 안에 탔던 사람.
+ * 여럿이면 더 자주 탄 사람, 같으면 최근에 탄 사람. 없으면 null.
+ */
+fun guessPassenger(rides: List<Ride>, seat: Seat, at: LocalDateTime, exclude: Set<String> = emptySet()): String? =
+    rides
+        .filter {
+            it.seat == seat && it.name !in exclude &&
+                it.at.dayOfWeek == at.dayOfWeek && minutesApart(it.at, at) <= MemoryRules.MATCH_WINDOW_MINUTES
+        }
+        .groupBy { it.name }
+        .maxWithOrNull(compareBy<Map.Entry<String, List<Ride>>>({ it.value.size }, { it.value.maxOf { ride -> ride.at } }))
+        ?.key
+
+/** 이름 묻기 화면에 보여 줄 전에 탔던 사람. 이 좌석에 자주 탄 사람 → 전체로 자주 탄 사람 → 최근 순 */
+fun nameSuggestions(rides: List<Ride>, seat: Seat, exclude: Set<String> = emptySet()): List<String> =
+    rides
+        .filter { it.name !in exclude }
+        .groupBy { it.name }
+        .entries
+        .sortedWith(
+            compareByDescending<Map.Entry<String, List<Ride>>> { e -> e.value.count { it.seat == seat } }
+                .thenByDescending { it.value.size }
+                .thenByDescending { e -> e.value.maxOf { it.at } },
+        )
+        .map { it.key }
+        .take(MemoryRules.MAX_SUGGESTIONS)
+
+/** 하루 중 시각 차이(분). 자정을 넘는 쪽이 더 가까우면 그쪽으로 잰다. */
+internal fun minutesApart(a: LocalDateTime, b: LocalDateTime): Int {
+    val diff = abs(a.toLocalTime().toSecondOfDay() - b.toLocalTime().toSecondOfDay()) / 60
+    return min(diff, 24 * 60 - diff)
+}
+
+private fun MemoryState.boarding(seat: Seat, at: LocalDateTime): SeatState {
+    val taken = namesOnOtherSeats(seat)
+    val guess = guessPassenger(data.rides, seat, at, exclude = taken)
+    return if (guess != null) {
+        SeatState.Confirming(at, guess)
+    } else {
+        SeatState.Asking(at, nameSuggestions(data.rides, seat, exclude = taken))
+    }
+}
+
+/** 한 사람이 두 좌석에 동시에 앉을 수는 없으니, 다른 좌석에서 이미 정해진 이름은 짐작 · 추천에서 뺀다 */
+private fun MemoryState.namesOnOtherSeats(seat: Seat): Set<String> =
+    seats.filterKeys { it != seat }.values.mapNotNull {
+        when (it) {
+            is SeatState.Known -> it.name
+            is SeatState.Confirming -> it.name
+            else -> null
+        }
+    }.toSet()
+
+private fun MemoryState.remember(seat: Seat, name: String, since: LocalDateTime): MemoryState = copy(
+    data = data.copy(rides = (data.rides + Ride(name, seat, since)).takeLast(MemoryRules.MAX_RIDES)),
+    seats = seats + (seat to SeatState.Known(since, name)),
+)
+
+private fun MemoryState.withSeat(seat: Seat, state: SeatState) = copy(seats = seats + (seat to state))
+
+// ---- 소지품 ----
+
+/** 문장으로 물건을 기억한다. 알아듣지 못하면 [MemoryState.inputError] 를 채운다. */
+fun MemoryState.addBelonging(text: String, now: LocalDateTime): MemoryState {
+    val parsed = parseBelonging(text, now.toLocalDate()) ?: return copy(inputError = MemoryMessages.NOT_UNDERSTOOD)
+    val belonging = Belonging(data.nextBelongingId, parsed.item, parsed.place, parsed.due, now)
+    return copy(
+        data = data.copy(belongings = data.belongings + belonging, nextBelongingId = data.nextBelongingId + 1),
+        inputError = null,
+    )
+}
+
+/** "챙겼어요" — 물건 하나를 지운다 */
+fun MemoryState.collect(id: Long): MemoryState = copy(
+    data = data.copy(belongings = data.belongings.filterNot { it.id == id }),
+    arrival = arrival?.minus(id)?.takeIf { it.isNotEmpty() },
+)
+
+/** 지금 챙겨야 할 물건: 챙길 날이 없거나, 오늘이거나, 이미 지난 것 */
+fun dueBelongings(belongings: List<Belonging>, today: LocalDate): List<Belonging> =
+    belongings.filter { it.due == null || !it.due.isAfter(today) }
+
+/**
+ * 변속 단이 바뀜. 주행(D · R · N)하다가 P 에 놓으면 하차로 보고 챙길 물건을 알린다.
+ * 앱을 켤 때 이미 P 였던 것은 하차로 치지 않는다. 잠깐 값을 못 읽어도 마지막 단을 기억한다.
+ */
+fun MemoryState.onGear(reading: Reading<Gear>, now: LocalDateTime): MemoryState {
+    val before = (gear as? Reading.Value)?.value
+    val after = (reading as? Reading.Value)?.value
+    val kept = if (after == null && before != null) gear else reading
+    val parked = before != null && before != Gear.PARK && after == Gear.PARK
+    val due = if (parked) dueBelongings(data.belongings, now.toLocalDate()).map { it.id } else emptyList()
+    return copy(gear = kept, arrival = due.ifEmpty { arrival })
+}
+
+/** 하차 알림을 닫는다. collected 면 알린 물건을 지운다("다 챙겼어요"). */
+fun MemoryState.closeArrival(collected: Boolean): MemoryState {
+    val ids = arrival ?: return this
+    val left = if (collected) data.belongings.filterNot { it.id in ids } else data.belongings
+    return copy(data = data.copy(belongings = left), arrival = null)
+}
+
+// ---- 다 잊어줘 ----
+
+/** 동승자 이름 · 탑승 기록 · 소지품을 모두 지운다. 지금 앉아 있는 사람에게는 이름을 처음부터 다시 묻는다. */
+fun MemoryState.forgetAll(): MemoryState = copy(
+    data = MemoryData(),
+    seats = seats.mapValues { (_, state) -> state.occupiedSince?.let { SeatState.Asking(it, emptyList()) } ?: state },
+    arrival = null,
+    inputError = null,
+)
