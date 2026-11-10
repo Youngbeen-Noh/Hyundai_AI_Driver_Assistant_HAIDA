@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -48,6 +49,7 @@ interface BriefingActions {
  * 시작 조건(목적지 없이 5분) → 큐에서 브리핑을 꺼내 문장마다 TTS 로 읽는다.
  * Pleos TTS 의 '다 읽음' 알림을 아직 쓰지 않아, 문장 길이로 읽는 시간을 짐작해 다음 문장으로 넘긴다.
  */
+@OptIn(kotlinx.coroutines.FlowPreview::class)
 class BriefingViewModel(
     private val source: BriefingSource,
     private val store: BriefingStore,
@@ -71,7 +73,10 @@ class BriefingViewModel(
         viewModelScope.launch {
             combine(BriefingTestSignals.drivingMinutes, BriefingTestSignals.hasDestination, autoStart) { min, dest, auto ->
                 Triple(min, dest, auto)
-            }.collect { (min, dest, auto) ->
+            }
+                // 신호가 거의 같이 바뀌면(목적지 설정 + 주행 시간) 중간 상태로 시작하지 않게 잠깐 모은다
+                .debounce(SIGNAL_SETTLE_MS)
+                .collect { (min, dest, auto) ->
                 if (min == null || min == 0) startedThisDrive = false
                 val go = shouldStartBriefing(auto, state.value.settings.selected.isNotEmpty(), min ?: 0, dest)
                 if (go && !startedThisDrive && !state.value.playing) {
@@ -162,3 +167,6 @@ class BriefingViewModel(
         return (p.line + 1).toFloat() / p.script.size
     }
 }
+
+/** 시작 조건 신호가 바뀐 뒤 이만큼 더 바뀌지 않으면 판단한다 */
+private const val SIGNAL_SETTLE_MS = 800L

@@ -14,8 +14,9 @@ import kr.contest.pleosassistant.briefing.BriefingTestSignals
  */
 class BriefingDebugReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.hasExtra("driving_min")) BriefingTestSignals.drivingMinutes.value = intent.getIntExtra("driving_min", 0)
+        // 목적지를 먼저 넣는다(시간을 먼저 넣으면 잠깐 '목적지 없음 + 10분'이 되어 시작해 버린다)
         if (intent.hasExtra("destination")) BriefingTestSignals.hasDestination.value = intent.getBooleanExtra("destination", false)
+        if (intent.hasExtra("driving_min")) BriefingTestSignals.drivingMinutes.value = intent.getIntExtra("driving_min", 0)
         Log.i(
             "BriefingDebug",
             "주행 ${BriefingTestSignals.drivingMinutes.value}분 · 목적지 ${BriefingTestSignals.hasDestination.value}",

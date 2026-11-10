@@ -35,13 +35,13 @@ data class Briefing(val id: String, val category: Category, val subtopics: List<
 }
 
 /**
- * 해요체 TTS 로 2~3분이 되게 하는 글자 수 상한. 한국어 TTS 는 1초에 약 5글자를 읽어 3분 ≈ 900자.
- * 여는 말 · 넘김 말이 붙으니 대본은 800자까지 담는다.
+ * 해요체 TTS 로 2~3분이 되게 하는 글자 수 상한. Pleos TTS(차 안 엔진)는 1초에 약 8글자를 읽어(에뮬레이터 측정)
+ * 문장 사이 쉼까지 넣으면 3분 ≈ 1,300자. 여는 말이 붙으니 대본은 1,200자까지 담는다.
  */
-const val SCRIPT_CHAR_LIMIT = 800
+const val SCRIPT_CHAR_LIMIT = 1200
 
-/** 한국어 TTS 가 1초에 읽는 글자 수(대략). 문장 길이로 읽는 시간을 짐작할 때 쓴다 */
-const val TTS_CHARS_PER_SEC = 5.0
+/** Pleos TTS 가 1초에 읽는 글자 수(에뮬레이터에서 44~69자 문장으로 잰 값 7.7~8.2). 문장 길이로 읽는 시간을 짐작할 때 쓴다 */
+const val TTS_CHARS_PER_SEC = 7.5
 
 /** 상한을 넘기 전까지 소주제를 앞에서부터 담는다. 첫 소주제는 길어도 넣는다 */
 fun Briefing.fitToLimit(limit: Int = SCRIPT_CHAR_LIMIT): Briefing {
@@ -54,7 +54,7 @@ fun Briefing.fitToLimit(limit: Int = SCRIPT_CHAR_LIMIT): Briefing {
 }
 
 /** 문장 하나를 읽는 데 걸리는 시간(초, 짐작). 문장 사이 쉼 1초 포함 */
-fun speakSeconds(line: String): Int = (line.length / TTS_CHARS_PER_SEC).toInt().coerceAtLeast(2) + 1
+fun speakSeconds(line: String): Int = kotlin.math.ceil(line.length / TTS_CHARS_PER_SEC).toInt().coerceAtLeast(2) + 1
 
 /** 목적지 없이 이만큼(분) 달리면 브리핑을 시작한다 */
 const val START_AFTER_MIN = 5

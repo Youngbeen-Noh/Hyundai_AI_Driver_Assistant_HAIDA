@@ -97,11 +97,12 @@ class BriefingTest {
 
     @Test
     fun `대본은 글자 수 상한 안에서 소주제를 담는다`() {
-        val long = Subtopic("t", "p", "", listOf("가".repeat(500)))
+        val long = Subtopic("t", "p", "", listOf("가".repeat(700)))
         val b = Briefing("x", Category.IT, listOf(long, long, long)).fitToLimit()
         assertEquals(1, b.subtopics.size)
         DemoBriefings.briefing(Category.IT, 0)!!.let { assertEquals(it, it.fitToLimit()) }
-        assertTrue(speakSeconds("가".repeat(50)) in 10..12)
+        // 50자 ≈ 6.7초 → 올림 7초 + 쉼 1초
+        assertEquals(8, speakSeconds("가".repeat(50)))
     }
 
     @Test
