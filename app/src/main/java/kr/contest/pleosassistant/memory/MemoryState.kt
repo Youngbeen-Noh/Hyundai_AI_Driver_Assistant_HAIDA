@@ -23,6 +23,7 @@ object MemoryRules {
 /**
  * 기능 2 의 상태 전체. 함수마다 새 상태를 돌려준다(Android 와 Pleos SDK 에 기대지 않아 단위 테스트로 흐름을 확인한다).
  * @property arrival 하차 알림에 띄운 물건 id. null 이면 알림 없음
+ * @property arrivalDone 하차 체크 목록에서 챙겼다고 표시한 물건 id. 알림을 닫을 때 지운다
  * @property inputError 소지품 문장을 알아듣지 못했을 때 안내
  */
 data class MemoryState(
@@ -30,6 +31,7 @@ data class MemoryState(
     val seats: Map<Seat, SeatState> = Seat.entries.associateWith { SeatState.Checking },
     val gear: Reading<Gear> = Reading.Loading,
     val arrival: List<Long>? = null,
+    val arrivalDone: Set<Long> = emptySet(),
     val inputError: String? = null,
 )
 
@@ -156,11 +158,14 @@ fun MemoryState.addBelonging(text: String, now: LocalDateTime): MemoryState {
     )
 }
 
-/** "챙겼어요" — 물건 하나를 지운다 */
-fun MemoryState.collect(id: Long): MemoryState = copy(
-    data = data.copy(belongings = data.belongings.filterNot { it.id == id }),
-    arrival = arrival?.minus(id)?.takeIf { it.isNotEmpty() },
-)
+/**
+ * "챙겼어요". 하차 체크 목록에 있는 물건이면 챙김 표시를 켜고 끈다(알림을 닫을 때 지운다).
+ * 목록 밖의 물건이면 바로 지운다.
+ */
+fun MemoryState.collect(id: Long): MemoryState = when {
+    arrival?.contains(id) == true -> copy(arrivalDone = if (id in arrivalDone) arrivalDone - id else arrivalDone + id)
+    else -> copy(data = data.copy(belongings = data.belongings.filterNot { it.id == id }))
+}
 
 /** 지금 챙겨야 할 물건: 챙길 날이 없거나, 오늘이거나, 이미 지난 것 */
 fun dueBelongings(belongings: List<Belonging>, today: LocalDate): List<Belonging> =
@@ -176,14 +181,24 @@ fun MemoryState.onGear(reading: Reading<Gear>, now: LocalDateTime): MemoryState 
     val kept = if (after == null && before != null) gear else reading
     val parked = before != null && before != Gear.PARK && after == Gear.PARK
     val due = if (parked) dueBelongings(data.belongings, now.toLocalDate()).map { it.id } else emptyList()
-    return copy(gear = kept, arrival = due.ifEmpty { arrival })
+    return if (due.isEmpty()) copy(gear = kept) else copy(gear = kept, arrival = due, arrivalDone = emptySet())
 }
 
-/** 하차 알림을 닫는다. collected 면 알린 물건을 지운다("다 챙겼어요"). */
+/**
+ * 주행 중인지. 팀 UI 규칙: 정차 = P 단(신호 대기도 주행으로 친다). 주행 중이면 입력 · 편집을 숨긴다.
+ * 단을 읽지 못하는 차는 정차로 보고 화면을 모두 보여 준다(값을 잠깐 못 읽으면 onGear 가 마지막 단을 기억한다).
+ */
+val MemoryState.driving: Boolean
+    get() = (gear as? Reading.Value)?.value.let { it != null && it != Gear.PARK }
+
+/**
+ * 하차 알림을 닫는다. collected("다 챙겼어요")면 알린 물건을 모두 지우고,
+ * 아니면("나중에") 챙겼다고 표시한 것만 지운다.
+ */
 fun MemoryState.closeArrival(collected: Boolean): MemoryState {
     val ids = arrival ?: return this
-    val left = if (collected) data.belongings.filterNot { it.id in ids } else data.belongings
-    return copy(data = data.copy(belongings = left), arrival = null)
+    val gone = if (collected) ids.toSet() else arrivalDone
+    return copy(data = data.copy(belongings = data.belongings.filterNot { it.id in gone }), arrival = null, arrivalDone = emptySet())
 }
 
 // ---- 다 잊어줘 ----
@@ -193,5 +208,6 @@ fun MemoryState.forgetAll(): MemoryState = copy(
     data = MemoryData(),
     seats = seats.mapValues { (_, state) -> state.occupiedSince?.let { SeatState.Asking(it, emptyList()) } ?: state },
     arrival = null,
+    arrivalDone = emptySet(),
     inputError = null,
 )
