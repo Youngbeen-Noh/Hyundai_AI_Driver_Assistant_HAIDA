@@ -17,6 +17,9 @@
     <uses-permission android:name="pleos.car.permission.CAR_SEATS" />
     <!-- 기능 2: 변속 단(P단 = 하차). Vehicle SDK 에 없어 AAOS 표준 CarPropertyManager 로 읽는다(protection: normal) -->
     <uses-permission android:name="android.car.permission.CAR_POWERTRAIN" />
+    <!-- 기능 6: 위험 구간 접근 감지. FusedLocation SDK 가 승인되기 전까지 표준 위치로 받는다 -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <application
         android:name=".HaidaApplication"
@@ -29,6 +32,11 @@
         <activity
             android:name=".MainActivity"
             android:exported="true">
+            <!-- 주행 중에도 화면을 띄운다(AAOS 운전 방해 제한). 없으면 D단에서 "주행 중에는 사용할 수 없습니다"로 가려져
+                 위험 구간 경고를 못 보여 준다. 주행 중 화면은 기능계획서 9장 원칙(큰 글씨 한 줄 · 버튼 3개 이하)을 지킨다 -->
+            <meta-data
+                android:name="distractionOptimized"
+                android:value="true" />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

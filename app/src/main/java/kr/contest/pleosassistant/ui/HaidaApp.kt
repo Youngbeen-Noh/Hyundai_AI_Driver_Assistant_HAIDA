@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Place
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -31,9 +32,13 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kr.contest.pleosassistant.hazard.HazardReport
 import kr.contest.pleosassistant.memory.MemoryReport
 import kr.contest.pleosassistant.status.StatusReport
 import kr.contest.pleosassistant.ui.common.Palette
+import kr.contest.pleosassistant.ui.hazard.HazardActions
+import kr.contest.pleosassistant.ui.hazard.HazardAlertDialog
+import kr.contest.pleosassistant.ui.hazard.HazardScreen
 import kr.contest.pleosassistant.ui.memory.ArrivalDialog
 import kr.contest.pleosassistant.ui.memory.MemoryActions
 import kr.contest.pleosassistant.ui.memory.MemoryScreen
@@ -44,11 +49,18 @@ import kr.contest.pleosassistant.ui.status.VehicleStatusScreen
 private enum class Destination(val label: String, val icon: ImageVector) {
     STATUS("차량 요약", Icons.Filled.DirectionsCar),
     MEMORY("기억", Icons.Filled.People),
+    HAZARD("위험 구간", Icons.Filled.Place),
 }
 
 /** 왼쪽 메뉴로 기능 화면을 오간다. 하차 알림은 어느 화면에 있든 위에 뜬다. */
 @Composable
-fun HaidaApp(status: StatusReport, memory: MemoryReport, memoryActions: MemoryActions) {
+fun HaidaApp(
+    status: StatusReport,
+    memory: MemoryReport,
+    memoryActions: MemoryActions,
+    hazard: HazardReport,
+    hazardActions: HazardActions,
+) {
     var current by rememberSaveable { mutableStateOf(Destination.STATUS) }
 
     Row(modifier = Modifier.fillMaxSize().background(Palette.background)) {
@@ -75,11 +87,14 @@ fun HaidaApp(status: StatusReport, memory: MemoryReport, memoryActions: MemoryAc
             when (current) {
                 Destination.STATUS -> VehicleStatusScreen(status)
                 Destination.MEMORY -> MemoryScreen(memory, memoryActions)
+                Destination.HAZARD -> HazardScreen(hazard, hazardActions)
             }
         }
     }
 
     memory.arrivalMessage?.let { ArrivalDialog(it, memoryActions) }
+    // 위험 구간 경고가 하차 알림보다 먼저다(기능계획서 9장 '말하는 순서')
+    hazard.alert?.let { HazardAlertDialog(it, hazardActions) }
 }
 
 @Composable
