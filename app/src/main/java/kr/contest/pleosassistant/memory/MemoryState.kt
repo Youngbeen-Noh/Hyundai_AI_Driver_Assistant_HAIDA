@@ -250,13 +250,16 @@ fun dueBelongings(belongings: List<Belonging>, today: LocalDate): List<Belonging
  * - 주행(D · R · N)하다가 P 에 놓으면: 내비로 가는 중이면 도착 직전 이후일 때만 도착으로 보고(가는 길에 잠깐 선 것은 아님),
  *   내비 없이 다니면 하차로 보고 챙길 물건을 알린다
  * 앱을 켤 때 이미 P 였던 것은 하차로 치지 않는다. 잠깐 값을 못 읽어도 마지막 단을 기억한다.
+ * 체크 목록에 답하지 않고 P 에서 출발하면 "나중에"로 닫는다(주행 중에는 체크 목록을 띄우지 않는다).
+ * 챙긴 물건은 누를 때 이미 지웠고, 남은 물건은 다음 하차 때 다시 알린다.
  */
 fun MemoryState.onGear(reading: Reading<Gear>, now: LocalDateTime): MemoryState {
     val before = (gear as? Reading.Value)?.value
     val after = (reading as? Reading.Value)?.value
     val kept = if (after == null && before != null) gear else reading
     var next = copy(gear = kept)
-    if (before == Gear.PARK && after != null && after != Gear.PARK) next = next.departed()
+    // P 에서 출발: 체크 목록에 답하지 않았으면 "나중에"로 닫고(주행 중에는 띄우지 않는다), 늘 챙길 것을 확인한다
+    if (before == Gear.PARK && after != null && after != Gear.PARK) next = next.closeArrival(collected = false).departed()
     val parked = before != null && before != Gear.PARK && after == Gear.PARK
     if (!parked) return next
     val t = next.trip

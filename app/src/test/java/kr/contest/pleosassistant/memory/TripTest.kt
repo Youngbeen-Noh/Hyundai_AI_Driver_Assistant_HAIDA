@@ -2,6 +2,7 @@ package kr.contest.pleosassistant.memory
 
 import kr.contest.pleosassistant.status.Reading
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -109,16 +110,30 @@ class TripTest {
 
         val arrived = near.navi(30).onNaviArrived(now)
         assertEquals("회사에 도착했어요. 텀블러, 사원증, 지갑, 보고서류 잊지 마세요.", arrived.announcement!!.text)
-        val list = arrived.report().checklist!!
+
+        // 내비 도착 알림은 아직 움직일 때(D) 오기도 한다: 주행 중에는 그 말 한 문장만 보이고, P 에 놓으면 체크 목록을 띄운다
+        val rolling = arrived.report()
+        assertNull(rolling.checklist)
+        assertEquals(arrived.announcement!!.text, rolling.panel!!.text)
+        assertFalse(rolling.panel!!.checklist)
+
+        val stopped = arrived.onGear(Reading.Value(Gear.PARK), now)
+        assertEquals("P 에 놓아도 또 알리지 않는다", arrived.announcement, stopped.announcement)
+        val list = stopped.report().checklist!!
         assertEquals("회사에 도착했어요", list.title)
         assertEquals(listOf("텀블러", "사원증", "지갑", "보고서류"), list.rows.map { it.item })
-        assertEquals("P 에 놓아도 또 알리지 않는다", arrived.announcement, arrived.onGear(Reading.Value(Gear.PARK), now).announcement)
+        assertTrue(stopped.report().panel!!.checklist)
 
         // 챙겼다고 하면 임시 소지품은 바로 지우고, 늘 챙길 것은 표시만 한다
-        val collected = arrived.say("보고서류 챙겼어").check("r:텀블러")
+        val collected = stopped.say("보고서류 챙겼어").check("r:텀블러")
         assertTrue(collected.data.belongings.isEmpty())
         assertEquals(2, collected.report().checklist!!.done)
         assertEquals(listOf("텀블러", "사원증", "지갑"), collected.data.routines.single().items)
+
+        // 체크 목록에 답하지 않고 다시 출발하면 닫는다
+        val again = collected.onGear(Reading.Value(Gear.DRIVE), now)
+        assertNull(again.arrival)
+        assertNull(again.report().checklist)
     }
 
     @Test

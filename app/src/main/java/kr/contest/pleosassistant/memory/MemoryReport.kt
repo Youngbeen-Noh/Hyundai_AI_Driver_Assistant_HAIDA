@@ -139,7 +139,9 @@ object MemoryMessages {
 
 fun buildMemoryReport(state: MemoryState, today: LocalDate): MemoryReport {
     val belongings = state.data.belongings
-    val checklist = state.arrival?.let { open ->
+    // 주행 중에는 체크 목록을 띄우지 않는다(한 문장만: 비서 패널은 도착 안내 말로 대신한다). P 에 놓으면 다시 띄운다.
+    // 내비 도착 알림은 차가 아직 움직일 때 오기도 한다.
+    val checklist = state.arrival?.takeUnless { state.driving }?.let { open ->
         val rows = open.items.map { it.toRow(open.done) }
         Checklist(open.title, rows, done = rows.count { it.done }, total = rows.size)
     }
