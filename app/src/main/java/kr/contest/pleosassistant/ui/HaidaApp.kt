@@ -43,6 +43,9 @@ import kr.contest.pleosassistant.ui.common.HaidaIcons
 import kr.contest.pleosassistant.ui.common.HaidaType
 import kr.contest.pleosassistant.ui.memory.MemoryActions
 import kr.contest.pleosassistant.ui.memory.MemoryScreen
+import kr.contest.pleosassistant.ui.music.MusicActions
+import kr.contest.pleosassistant.ui.music.MusicScreen
+import kr.contest.pleosassistant.ui.music.MusicUi
 import kr.contest.pleosassistant.ui.status.VehicleStatusScreen
 
 // 앱 틀: 팀 UI 프로토타입의 왼쪽 메뉴(.dock, 너비 128, 브랜드 연한 색)와 화면 영역(.main).
@@ -51,13 +54,21 @@ import kr.contest.pleosassistant.ui.status.VehicleStatusScreen
 private enum class Destination(val label: String, val icon: ImageVector) {
     CAR("차량", HaidaIcons.Car),
     PEOPLE("동승", HaidaIcons.People),
+    MUSIC("음악", HaidaIcons.Music),
 }
 
 /**
  * @param driving 주행 중(P 가 아님)이면 화면마다 입력 · 편집을 숨긴다(팀 UI 규칙: 정차 = P)
  */
 @Composable
-fun HaidaApp(status: StatusReport, memory: MemoryReport, driving: Boolean, memoryActions: MemoryActions) {
+fun HaidaApp(
+    status: StatusReport,
+    memory: MemoryReport,
+    driving: Boolean,
+    memoryActions: MemoryActions,
+    music: MusicUi,
+    musicActions: MusicActions,
+) {
     var current by rememberSaveable { mutableStateOf(Destination.CAR) }
     // 하차 알림: 동승 화면에서는 체크 목록으로, 다른 화면에서는 아래 비서 패널로 띄운다
     val arrival = memory.arrivalMessage?.takeIf { current != Destination.PEOPLE }
@@ -70,6 +81,7 @@ fun HaidaApp(status: StatusReport, memory: MemoryReport, driving: Boolean, memor
                 when (it) {
                     Destination.CAR -> status.overall.severity > 0
                     Destination.PEOPLE -> memory.question != null || memory.arrivalItems.isNotEmpty()
+                    Destination.MUSIC -> false
                 }
             },
             onSelect = { current = it },
@@ -81,6 +93,8 @@ fun HaidaApp(status: StatusReport, memory: MemoryReport, driving: Boolean, memor
                 when (current) {
                     Destination.CAR -> VehicleStatusScreen(status, driving)
                     Destination.PEOPLE -> MemoryScreen(memory, driving, memoryActions)
+                    // 주행 중 화면(버튼 3개 · 다음 곡 하나)은 변속 단(기능 2 CabinSource)으로 켠다
+                    Destination.MUSIC -> MusicScreen(music, driving, actions = musicActions)
                 }
             }
             if (arrival != null) {

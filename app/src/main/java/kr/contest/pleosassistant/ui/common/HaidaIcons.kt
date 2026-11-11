@@ -76,6 +76,19 @@ object HaidaIcons {
     val Mic by lazy { icon("mic", rect(9f, 3.5f, 6f, 11f, 3f), "M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3") }
     val Settings by lazy { icon("settings", "M4 7h9M17 7h3M4 17h3M11 17h9", circle(15f, 7f, 2f), circle(9f, 17f, 2f)) }
 
+    // 기능 3 · 4 (음악 · 브리핑)
+    val Music by lazy { icon("music", "M9 18V6l10-2v12", circle(6.5f, 18f, 2.5f), circle(16.5f, 16f, 2.5f)) }
+    val News by lazy { icon("news", rect(3.5f, 4.5f, 17f, 15f, 2.5f), "M7 9h10M7 13h10M7 16.5h6") }
+    val Save by lazy { icon("save", "M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z") }
+    val Play by lazy { filled("play", "M7 4.8v14.4a.8.8 0 0 0 1.2.7l11-7.2a.8.8 0 0 0 0-1.4L8.2 4.1A.8.8 0 0 0 7 4.8z") }
+    val Pause by lazy { filled("pause", rect(6f, 4.5f, 4f, 15f, 1.2f), rect(14f, 4.5f, 4f, 15f, 1.2f)) }
+    val Next by lazy {
+        ImageVector.Builder("next", 24.dp, 24.dp, 24f, 24f).apply {
+            addPath(addPathNodes("M6 5.5v13l9-6.5z"), fill = SolidColor(Color.Black))
+            addPath(addPathNodes("M18.5 5.5v13"), stroke = SolidColor(Color.Black), strokeLineWidth = 2f, strokeLineCap = StrokeCap.Round)
+        }.build()
+    }
+
     /** 앱 로고(H). 색은 테마에 따라 바뀌어 매번 만든다. */
     fun logo(background: Color, foreground: Color): ImageVector =
         ImageVector.Builder("logo", 64.dp, 64.dp, 64f, 64f).apply {
@@ -98,6 +111,12 @@ object HaidaIcons {
                     strokeLineJoin = StrokeJoin.Round,
                 )
             }
+        }.build()
+
+    /** 채운 아이콘(프로토타입 style="fill:currentColor") */
+    private fun filled(name: String, vararg paths: String): ImageVector =
+        ImageVector.Builder(name, 24.dp, 24.dp, 24f, 24f).apply {
+            paths.forEach { d -> addPath(pathData = addPathNodes(d), fill = SolidColor(Color.Black)) }
         }.build()
 
     private fun circle(cx: Float, cy: Float, r: Float) =
