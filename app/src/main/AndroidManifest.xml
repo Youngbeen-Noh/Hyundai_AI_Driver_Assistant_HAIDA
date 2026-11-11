@@ -13,6 +13,10 @@
     <uses-permission android:name="pleos.car.permission.CAR_ENERGY" />
     <!-- 기능 1: 누적 주행거리 -->
     <uses-permission android:name="pleos.car.permission.CAR_DRIVE" />
+    <!-- 기능 2: 좌석별 착석 -->
+    <uses-permission android:name="pleos.car.permission.CAR_SEATS" />
+    <!-- 기능 2: 변속 단(P단 = 하차). Vehicle SDK 에 없어 AAOS 표준 CarPropertyManager 로 읽는다(protection: normal) -->
+    <uses-permission android:name="android.car.permission.CAR_POWERTRAIN" />
     <!-- 기능 3: 분위기 보정(와이퍼 → 빗길, 전조등 → 밤길). AAOS 표준 속성으로 읽는다 -->
     <uses-permission android:name="android.car.permission.CAR_EXTERIOR_LIGHTS" />
     <uses-permission android:name="android.car.permission.READ_WINDSHIELD_WIPERS" />
@@ -40,6 +44,10 @@
         <activity
             android:name=".MainActivity"
             android:exported="true">
+            <!-- 주행 중에도 화면을 보인다(AAOS 주행 중 제한). 주행 중에는 화면이 입력 · 편집을 숨기고 한 문장 · 큰 버튼만 남긴다 -->
+            <meta-data
+                android:name="distractionOptimized"
+                android:value="true" />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

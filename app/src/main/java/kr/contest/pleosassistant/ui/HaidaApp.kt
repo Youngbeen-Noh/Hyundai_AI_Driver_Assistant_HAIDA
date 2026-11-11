@@ -32,13 +32,20 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import kr.contest.pleosassistant.memory.MemoryReport
 import kr.contest.pleosassistant.status.StatusReport
+import kr.contest.pleosassistant.ui.common.AssistantPanel
+import kr.contest.pleosassistant.ui.common.AssistantPanelHeight
+import kr.contest.pleosassistant.ui.common.ButtonKind
 import kr.contest.pleosassistant.ui.common.Haida
+import kr.contest.pleosassistant.ui.common.HaidaButton
 import kr.contest.pleosassistant.ui.common.HaidaIcons
 import kr.contest.pleosassistant.ui.common.HaidaType
 import kr.contest.pleosassistant.ui.briefing.BriefingActions
 import kr.contest.pleosassistant.ui.briefing.BriefingScreen
 import kr.contest.pleosassistant.ui.briefing.BriefingUi
+import kr.contest.pleosassistant.ui.memory.MemoryActions
+import kr.contest.pleosassistant.ui.memory.MemoryScreen
 import kr.contest.pleosassistant.ui.music.MusicActions
 import kr.contest.pleosassistant.ui.music.MusicScreen
 import kr.contest.pleosassistant.ui.music.MusicUi
@@ -49,28 +56,37 @@ import kr.contest.pleosassistant.ui.status.VehicleStatusScreen
 
 private enum class Destination(val label: String, val icon: ImageVector) {
     CAR("차량", HaidaIcons.Car),
+    PEOPLE("동승", HaidaIcons.People),
     MUSIC("음악", HaidaIcons.Music),
     NEWS("브리핑", HaidaIcons.News),
 }
 
+/**
+ * @param driving 주행 중(P 가 아님)이면 화면마다 입력 · 편집을 숨긴다(팀 UI 규칙: 정차 = P)
+ */
 @Composable
 fun HaidaApp(
     status: StatusReport,
+    memory: MemoryReport,
+    driving: Boolean,
+    memoryActions: MemoryActions,
     music: MusicUi,
     musicActions: MusicActions,
     briefing: BriefingUi,
     briefingActions: BriefingActions,
 ) {
     var current by rememberSaveable { mutableStateOf(Destination.CAR) }
+    // 하차 알림: 동승 화면에서는 체크 목록으로, 다른 화면에서는 아래 비서 패널로 띄운다
+    val arrival = memory.arrivalMessage?.takeIf { current != Destination.PEOPLE }
 
     Row(modifier = Modifier.fillMaxSize().background(Haida.colors.l0)) {
         Dock(
             current = current,
-            // 다른 화면에 있을 때 차에 주의할 것이 있으면 점으로 알린다
-            // 브리핑을 듣는 중이면 브리핑 메뉴에도 점을 찍는다
+            // 다른 화면에 있을 때 차에 주의할 것이 있거나, 동승 화면이 답을 기다리면(누가 탔는지 · 하차 확인), 브리핑을 듣는 중이면 점으로 알린다
             badge = {
                 when (it) {
                     Destination.CAR -> status.overall.severity > 0
+                    Destination.PEOPLE -> memory.question != null || memory.arrivalItems.isNotEmpty()
                     Destination.MUSIC -> false
                     Destination.NEWS -> briefing.state.playing
                 }
@@ -78,12 +94,28 @@ fun HaidaApp(
             onSelect = { current = it },
         )
         Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
-            when (current) {
-                // 변속 단(주행 중 화면)은 기능 2 PR 에서 CabinSource 로 연결한다
-                Destination.CAR -> VehicleStatusScreen(status, driving = false)
-                // 주행 중 화면(버튼 3개 · 다음 곡 하나)도 변속 단이 연결되면 driving 으로 켠다
-                Destination.MUSIC -> MusicScreen(music, driving = false, actions = musicActions)
-                Destination.NEWS -> BriefingScreen(briefing, driving = false, actions = briefingActions)
+            // 비서 패널은 본문을 덮지 않는다: 패널이 뜨면 본문 아래에 패널 자리(높이 + 위아래 간격)를 비운다
+            val bottom = if (arrival != null) AssistantPanelHeight + 18.dp + 16.dp - 24.dp else 0.dp
+            Box(Modifier.fillMaxSize().padding(bottom = bottom)) {
+                when (current) {
+                    Destination.CAR -> VehicleStatusScreen(status, driving)
+                    Destination.PEOPLE -> MemoryScreen(memory, driving, memoryActions)
+                    // 주행 중 화면(버튼 3개 · 다음 곡 하나)은 변속 단(기능 2 CabinSource)으로 켠다
+                    Destination.MUSIC -> MusicScreen(music, driving, actions = musicActions)
+                    // 주행 중에는 자막을 숨기고 다음 분야만(기능 4)
+                    Destination.NEWS -> BriefingScreen(briefing, driving, actions = briefingActions)
+                }
+            }
+            if (arrival != null) {
+                AssistantPanel(
+                    tag = "도착",
+                    text = arrival,
+                    tagIcon = HaidaIcons.Bag,
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(start = 40.dp, end = 40.dp, bottom = 18.dp),
+                ) {
+                    HaidaButton("다 챙겼어요", onClick = { memoryActions.closeArrival(collected = true) }, kind = ButtonKind.PRIMARY, height = 76.dp)
+                    HaidaButton("나중에", onClick = { memoryActions.closeArrival(collected = false) }, height = 76.dp)
+                }
             }
         }
     }
