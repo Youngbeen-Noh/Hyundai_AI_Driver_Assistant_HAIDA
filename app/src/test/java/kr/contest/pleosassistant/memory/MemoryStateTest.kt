@@ -159,6 +159,26 @@ class MemoryStateTest {
     }
 
     @Test
+    fun `하차 알림에 답하지 않고 출발하면 나중에로 닫고, 다음 하차 때 다시 알린다`() {
+        val arrived = ready().drive()
+            .addBelonging("트렁크에 우산 넣었어", tue0830)
+            .addBelonging("가방 뒷자리에 뒀어", tue0830)
+            .park()
+            .collect(1)
+        assertEquals(listOf(1L, 2L), arrived.arrival)
+
+        val departed = arrived.drive()
+        assertNull("주행 중에는 체크 목록을 띄우지 않는다", departed.arrival)
+        val report = buildMemoryReport(departed, tue0830.toLocalDate())
+        assertNull(report.arrivalMessage)
+        assertTrue(report.arrivalItems.isEmpty())
+        assertEquals("챙겼다고 표시한 우산만 지운다", listOf("가방"), departed.data.belongings.map { it.item })
+
+        assertEquals(listOf(2L), departed.park().arrival)
+        assertNull("후진으로 나가도 닫는다", arrived.onGear(Reading.Value(Gear.REVERSE), tue0830).arrival)
+    }
+
+    @Test
     fun `알아듣지 못한 문장은 저장하지 않고 안내한다`() {
         val state = ready().addBelonging("트렁크에 넣었어", tue0830)
         assertTrue(state.data.belongings.isEmpty())
