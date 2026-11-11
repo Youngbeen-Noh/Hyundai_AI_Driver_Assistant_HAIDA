@@ -174,14 +174,18 @@ fun dueBelongings(belongings: List<Belonging>, today: LocalDate): List<Belonging
 /**
  * 변속 단이 바뀜. 주행(D · R · N)하다가 P 에 놓으면 하차로 보고 챙길 물건을 알린다.
  * 앱을 켤 때 이미 P 였던 것은 하차로 치지 않는다. 잠깐 값을 못 읽어도 마지막 단을 기억한다.
+ * 하차 알림에 답하지 않고 출발하면 "나중에"로 닫는다(주행 중에는 체크 목록을 띄우지 않는다).
+ * 챙겼다고 표시한 물건만 지우고, 나머지는 다음 하차 때 다시 알린다.
  */
 fun MemoryState.onGear(reading: Reading<Gear>, now: LocalDateTime): MemoryState {
     val before = (gear as? Reading.Value)?.value
     val after = (reading as? Reading.Value)?.value
     val kept = if (after == null && before != null) gear else reading
+    val departing = after != null && after != Gear.PARK && arrival != null
+    val base = if (departing) closeArrival(collected = false) else this
     val parked = before != null && before != Gear.PARK && after == Gear.PARK
-    val due = if (parked) dueBelongings(data.belongings, now.toLocalDate()).map { it.id } else emptyList()
-    return if (due.isEmpty()) copy(gear = kept) else copy(gear = kept, arrival = due, arrivalDone = emptySet())
+    val due = if (parked) dueBelongings(base.data.belongings, now.toLocalDate()).map { it.id } else emptyList()
+    return if (due.isEmpty()) base.copy(gear = kept) else base.copy(gear = kept, arrival = due, arrivalDone = emptySet())
 }
 
 /**
