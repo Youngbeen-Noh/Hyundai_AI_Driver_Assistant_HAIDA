@@ -46,6 +46,9 @@ import kr.contest.pleosassistant.ui.common.HaidaIcons
 import kr.contest.pleosassistant.ui.common.HaidaType
 import kr.contest.pleosassistant.ui.memory.MemoryActions
 import kr.contest.pleosassistant.ui.memory.MemoryScreen
+import kr.contest.pleosassistant.ui.music.MusicActions
+import kr.contest.pleosassistant.ui.music.MusicScreen
+import kr.contest.pleosassistant.ui.music.MusicUi
 import kr.contest.pleosassistant.ui.status.VehicleStatusScreen
 import kr.contest.pleosassistant.voice.ListenState
 
@@ -55,6 +58,7 @@ import kr.contest.pleosassistant.voice.ListenState
 private enum class Destination(val label: String, val icon: ImageVector) {
     CAR("차량", HaidaIcons.Car),
     PEOPLE("동승", HaidaIcons.People),
+    MUSIC("음악", HaidaIcons.Music),
 }
 
 
@@ -63,7 +67,15 @@ private enum class Destination(val label: String, val icon: ImageVector) {
  * @param listening 말로 하기(음성 인식) 상태. 듣는 중이면 아래 패널에 알아들은 말을 보인다
  */
 @Composable
-fun HaidaApp(status: StatusReport, memory: MemoryReport, driving: Boolean, listening: ListenState, memoryActions: MemoryActions) {
+fun HaidaApp(
+    status: StatusReport,
+    memory: MemoryReport,
+    driving: Boolean,
+    listening: ListenState,
+    memoryActions: MemoryActions,
+    music: MusicUi,
+    musicActions: MusicActions,
+) {
     var current by rememberSaveable { mutableStateOf(Destination.CAR) }
     // 체크 목록 알림은 동승 화면에서는 화면 안에 보이므로 패널로 띄우지 않는다
     val panel = memory.panel?.takeUnless { it.checklist && current == Destination.PEOPLE }
@@ -85,6 +97,7 @@ fun HaidaApp(status: StatusReport, memory: MemoryReport, driving: Boolean, liste
                 when (it) {
                     Destination.CAR -> status.overall.severity > 0
                     Destination.PEOPLE -> memory.question != null || memory.checklist != null
+                    Destination.MUSIC -> false
                 }
             },
             onSelect = { current = it },
@@ -100,6 +113,8 @@ fun HaidaApp(status: StatusReport, memory: MemoryReport, driving: Boolean, liste
                 when (current) {
                     Destination.CAR -> VehicleStatusScreen(status, driving)
                     Destination.PEOPLE -> MemoryScreen(memory, driving, memoryActions)
+                    // 주행 중 화면(버튼 3개 · 다음 곡 하나)은 변속 단(기능 2 CabinSource)으로 켠다
+                    Destination.MUSIC -> MusicScreen(music, driving, actions = musicActions)
                 }
             }
             val panelModifier = Modifier.align(Alignment.BottomCenter).padding(start = 40.dp, end = 40.dp, bottom = 18.dp)

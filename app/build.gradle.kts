@@ -13,7 +13,7 @@ android {
     // TODO(공모전 제출 전): 앱 이름이 정해지면 namespace / applicationId 를 바꾼다.
     namespace = "kr.contest.pleosassistant"
     compileSdk = targetAndroidSdk
-    // AAOS 표준 Car API(CarPropertyManager). 기능 2 의 변속 단(P단)은 Vehicle SDK 에 없어서 이것으로 읽는다.
+    // AAOS 표준 Car API(CarPropertyManager). 기능 2 의 변속 단(P단)은 Vehicle SDK 에 없어서, 기능 3 의 와이퍼 · 전조등은 표준 속성이라 이것으로 읽는다.
     useLibrary("android.car")
 
     defaultConfig {
@@ -50,7 +50,7 @@ dependencies {
     implementation(libs.pleos.vehicle)
     implementation(libs.pleos.vehicle.data)
     implementation(libs.pleos.navihelper)
-    // 음성 출력 · 인식: 차 안(ON_DEVICE) 모드만 써서 앱 등록 없이 쓴다
+    // 음성 출력 · 인식: 차 안(ON_DEVICE) 모드만 써서 앱 등록 없이 쓴다(출력은 기능 2 · 3, 인식은 기능 2)
     implementation(libs.pleos.tts)
     implementation(libs.pleos.stt)
     // 준비 중 SDK — 승인 후 주석 해제
@@ -67,4 +67,6 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
 
     testImplementation(libs.junit)
+    // 단위 테스트에서 org.json(안드로이드 스텁은 동작하지 않음)
+    testImplementation(libs.json)
 }
