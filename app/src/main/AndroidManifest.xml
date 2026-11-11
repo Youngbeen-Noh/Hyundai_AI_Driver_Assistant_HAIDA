@@ -17,11 +17,14 @@
     <uses-permission android:name="pleos.car.permission.CAR_SEATS" />
     <!-- 기능 2: 변속 단(P단 = 하차). Vehicle SDK 에 없어 AAOS 표준 CarPropertyManager 로 읽는다(protection: normal) -->
     <uses-permission android:name="android.car.permission.CAR_POWERTRAIN" />
+    <!-- 기능 2: 내비 목적지 · 남은 거리 · 도착(목적지별 소지품 알림) -->
+    <uses-permission android:name="pleos.car.permission.NAVI_ROUTE" />
     <!-- 기능 3: 분위기 보정(와이퍼 → 빗길, 전조등 → 밤길). AAOS 표준 속성으로 읽는다 -->
     <uses-permission android:name="android.car.permission.CAR_EXTERIOR_LIGHTS" />
     <uses-permission android:name="android.car.permission.READ_WINDSHIELD_WIPERS" />
-    <!-- 기능 3: 분위기가 바뀌면 이유를 말한다(음성 출력, 차 안 엔진) -->
+    <!-- 음성 출력(기능 2 소지품 알림 · 기능 3 분위기 이유) · 음성 인식(기능 2 말로 등록). 둘 다 차 안 엔진만 쓴다 -->
     <uses-permission android:name="pleos.car.permission.TTS_SERVICE" />
+    <uses-permission android:name="pleos.car.permission.STT_SERVICE" />
     <!-- 기능 3: 날씨(Open-Meteo). 위치는 대략(약 1km)만 쓴다 -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />

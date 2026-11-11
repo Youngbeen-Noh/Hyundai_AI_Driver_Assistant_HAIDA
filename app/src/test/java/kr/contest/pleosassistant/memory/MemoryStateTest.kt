@@ -127,7 +127,7 @@ class MemoryStateTest {
         assertNull("처음부터 P 인 것은 하차가 아니다", state.arrival)
 
         val arrived = state.drive().park()
-        assertEquals(listOf(1L), arrived.arrival)
+        assertEquals(listOf(1L), arrived.arrival?.items?.map { it.belongingId })
     }
 
     @Test
@@ -139,7 +139,7 @@ class MemoryStateTest {
 
         val tomorrow = tue0830.plusDays(1)
         val nextDay = state.onGear(Reading.Value(Gear.DRIVE), tomorrow).onGear(Reading.Value(Gear.PARK), tomorrow)
-        assertEquals(listOf(1L), nextDay.arrival)
+        assertEquals(listOf(1L), nextDay.arrival?.items?.map { it.belongingId })
     }
 
     @Test
@@ -165,16 +165,16 @@ class MemoryStateTest {
             .addBelonging("가방 뒷자리에 뒀어", tue0830)
             .park()
             .collect(1)
-        assertEquals(listOf(1L, 2L), arrived.arrival)
+        assertEquals(listOf(1L, 2L), arrived.arrival?.items?.map { it.belongingId })
 
         val departed = arrived.drive()
         assertNull("주행 중에는 체크 목록을 띄우지 않는다", departed.arrival)
         val report = buildMemoryReport(departed, tue0830.toLocalDate())
-        assertNull(report.arrivalMessage)
-        assertTrue(report.arrivalItems.isEmpty())
-        assertEquals("챙겼다고 표시한 우산만 지운다", listOf("가방"), departed.data.belongings.map { it.item })
+        assertNull(report.checklist)
+        assertFalse(report.panel?.checklist == true)
+        assertEquals("챙긴 우산은 바로 지웠고, 가방은 남긴다", listOf("가방"), departed.data.belongings.map { it.item })
 
-        assertEquals(listOf(2L), departed.park().arrival)
+        assertEquals(listOf(2L), departed.park().arrival?.items?.map { it.belongingId })
         assertNull("후진으로 나가도 닫는다", arrived.onGear(Reading.Value(Gear.REVERSE), tue0830).arrival)
     }
 
@@ -191,7 +191,7 @@ class MemoryStateTest {
         val state = ready().addBelonging("우산 챙겨", tue0830).drive()
             .onGear(Reading.Unavailable, tue0830)
             .park()
-        assertEquals(listOf(1L), state.arrival)
+        assertEquals(listOf(1L), state.arrival?.items?.map { it.belongingId })
     }
 
     // ---- 다 잊어줘 ----

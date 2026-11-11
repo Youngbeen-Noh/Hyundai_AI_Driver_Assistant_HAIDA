@@ -13,6 +13,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import kr.contest.pleosassistant.music.MediaAppPlayer
 import kr.contest.pleosassistant.music.OpenMeteoWeatherSource
+import kr.contest.pleosassistant.navi.PleosNaviSource
 import kr.contest.pleosassistant.storage.FileMemoryStore
 import kr.contest.pleosassistant.storage.FileMusicStore
 import kr.contest.pleosassistant.ui.HaidaApp
@@ -24,6 +25,7 @@ import kr.contest.pleosassistant.vehicle.CarExteriorSource
 import kr.contest.pleosassistant.vehicle.PleosCabinSource
 import kr.contest.pleosassistant.vehicle.PleosVehicleStatusSource
 import kr.contest.pleosassistant.voice.PleosSpeaker
+import kr.contest.pleosassistant.voice.PleosVoiceInput
 import java.io.File
 
 class MainActivity : ComponentActivity() {
@@ -42,6 +44,9 @@ class MainActivity : ComponentActivity() {
                 MemoryViewModel(
                     cabin = PleosCabinSource(haida.vehicle, haida),
                     store = FileMemoryStore(File(haida.noBackupFilesDir, "memory.json")),
+                    navi = PleosNaviSource(haida),
+                    speaker = PleosSpeaker(haida),
+                    voice = PleosVoiceInput(haida),
                 )
             }
         }
@@ -76,8 +81,9 @@ class MainActivity : ComponentActivity() {
                 val report by statusViewModel.report.collectAsStateWithLifecycle()
                 val memory by memoryViewModel.report.collectAsStateWithLifecycle()
                 val driving by memoryViewModel.driving.collectAsStateWithLifecycle()
+                val listening by memoryViewModel.listening.collectAsStateWithLifecycle()
                 val music by musicViewModel.ui.collectAsStateWithLifecycle()
-                HaidaApp(report, memory, driving, memoryViewModel, music, musicViewModel)
+                HaidaApp(report, memory, driving, listening, memoryViewModel, music, musicViewModel)
             }
         }
     }

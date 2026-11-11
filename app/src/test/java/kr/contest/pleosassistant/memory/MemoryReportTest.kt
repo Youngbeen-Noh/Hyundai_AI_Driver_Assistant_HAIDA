@@ -103,27 +103,23 @@ class MemoryReportTest {
     }
 
     @Test
-    fun `하차 체크 목록 - 챙긴 것을 표시하고, 나중에 하면 표시한 것만 지운다`() {
+    fun `하차 체크 목록 - 누르면 바로 지우고 목록에는 챙김으로 남는다, 나중에 하면 남은 것은 둔다`() {
         val parked = empty()
             .addBelonging("트렁크에 우산 넣었어", now)
             .addBelonging("조수석에 지갑 뒀어", now)
             .onGear(Reading.Value(Gear.DRIVE), now)
             .onGear(Reading.Value(Gear.PARK), now)
-        assertEquals(listOf("우산", "지갑"), parked.report().arrivalItems.map { it.item })
+        val list = parked.report().checklist!!
+        assertEquals(listOf("우산", "지갑"), list.rows.map { it.item })
+        assertEquals("트렁크에 둔 우산, 조수석에 둔 지갑 챙기세요.", parked.announcement!!.text)
 
-        val umbrella = parked.report().arrivalItems.first().id
-        val checked = parked.collect(umbrella)
-        assertEquals(listOf("우산", "지갑"), checked.report().arrivalItems.map { it.item })
-        assertEquals(setOf(umbrella), checked.report().arrivalDone)
-        assertEquals("조수석에 둔 지갑 챙기세요.", checked.report().arrivalMessage)
-        // 다시 누르면 표시를 끈다
-        assertTrue(checked.collect(umbrella).report().arrivalDone.isEmpty())
-        // 둘 다 챙기면 다 챙겼다고 말한다
-        val wallet = parked.report().arrivalItems.last().id
-        assertEquals(MemoryMessages.ALL_COLLECTED, checked.collect(wallet).report().arrivalMessage)
+        val checked = parked.check(list.rows.first().key)
+        assertEquals(listOf("지갑"), checked.report().belongings.map { it.item })
+        assertEquals(1, checked.report().checklist!!.done)
+        assertEquals("지갑 챙기세요.", checked.report().panel!!.text)
 
         val later = checked.closeArrival(collected = false)
-        assertTrue(later.report().arrivalItems.isEmpty())
+        assertNull(later.report().checklist)
         assertEquals(listOf("지갑"), later.report().belongings.map { it.item })
     }
 

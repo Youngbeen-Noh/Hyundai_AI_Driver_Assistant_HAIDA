@@ -1,7 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- 디버그 빌드에만: 에뮬레이터에서 adb 로 신호를 넣어 보는 수신기. DUMP 권한이 있는 adb shell 만 보낼 수 있다 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- 기능 2 확인용: 앱이 직접 목적지를 넣어 내비 이벤트를 받아 본다 -->
+    <uses-permission android:name="pleos.car.permission.NAVI_ROUTE_SEARCH" />
+
     <application>
+        <!-- 기능 2: 말(음성 인식 결과) · 내비 목적지 · 남은 거리 · 도착 -->
+        <receiver
+            android:name=".DebugReceiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP">
+            <intent-filter>
+                <action android:name="kr.contest.pleosassistant.DEBUG" />
+            </intent-filter>
+        </receiver>
         <!-- 기능 3: 분위기 신호(시간 · 날씨 · 와이퍼 · 전조등 · 정체) -->
         <receiver
             android:name=".MusicDebugReceiver"
