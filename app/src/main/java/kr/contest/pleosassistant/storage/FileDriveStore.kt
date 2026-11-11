@@ -26,12 +26,13 @@ class FileDriveStore(file: File) : DriveStore {
 
     @Synchronized
     override fun save(data: DriveData) {
-        val out = file.startWrite()
+        var out: java.io.FileOutputStream? = null
         try {
+            out = file.startWrite()
             out.write(encode(data).toString().toByteArray(Charsets.UTF_8))
             file.finishWrite(out)
         } catch (e: Exception) {
-            file.failWrite(out)
+            out?.let(file::failWrite)
             Log.w(TAG, "주행 기록 저장 실패: $e")
         }
     }

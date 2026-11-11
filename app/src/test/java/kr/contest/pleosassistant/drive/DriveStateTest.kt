@@ -139,4 +139,19 @@ class DriveStateTest {
         assertEquals(DriveEventType.HARD_BRAKE, w.type)
         assertEquals(4, w.minus)
     }
+
+    @Test
+    fun `점수 창을 닫지 않고 다시 출발하면 주행 중에는 점수를 숨긴다`() {
+        val parked = park(start().feed(List(11) { it * 6.0 } + cruise(120)))
+        assertNotNull(parked.finished)
+        assertNotNull(buildDriveReport(parked, t0.plusMinutes(10)).finished)
+
+        val again = parked.onGear(Reading.Value(Gear.DRIVE), t0.plusMinutes(11))
+        assertNull(again.finished)
+        val r = buildDriveReport(again, t0.plusMinutes(11))
+        assertTrue(r.driving)
+        assertNull(r.finished)
+        assertNull(r.finishedMessage)
+        assertNotNull(r.last) // 지난 기록은 남아 있고, 정차하면 리포트 탭에서 다시 본다
+    }
 }

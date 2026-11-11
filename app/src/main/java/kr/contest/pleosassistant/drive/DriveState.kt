@@ -60,7 +60,8 @@ fun DriveState.onGear(reading: Reading<Gear>, now: LocalDateTime): DriveState {
     val gearValue = (reading as? Reading.Value)?.value
     return when {
         gearValue == Gear.PARK && trip != null -> endTrip(now).copy(gear = reading)
-        gearValue != null && gearValue != Gear.PARK && trip == null -> copy(gear = reading, trip = Trip(start = now))
+        // 새로 출발하면 닫지 않은 점수 창도 닫는다(주행 중 점수 숨김)
+        gearValue != null && gearValue != Gear.PARK && trip == null -> copy(gear = reading, trip = Trip(start = now), finished = null)
         else -> copy(gear = reading)
     }
 }
@@ -205,8 +206,9 @@ fun buildDriveReport(state: DriveState, now: LocalDateTime, speed: Reading<Unit>
         lastMessage = last?.message(previous),
         worst = last?.worstScene(),
         recentScores = trips.takeLast(7).map { it.score },
-        finished = state.finished,
-        finishedMessage = state.finished?.message(finishedPrev),
+        // 주행 중에는 점수를 보여 주지 않는다
+        finished = state.finished.takeIf { !driving },
+        finishedMessage = state.finished?.takeIf { !driving }?.message(finishedPrev),
         speedProblem = when (speed) {
             Reading.Unsupported -> "차속을 읽을 권한이 없어요. 권한을 허용해야 점수를 낼 수 있어요"
             Reading.Unavailable -> "차속을 읽지 못하고 있어요"
