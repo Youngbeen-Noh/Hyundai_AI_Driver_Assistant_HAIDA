@@ -137,6 +137,43 @@ class TripTest {
     }
 
     @Test
+    fun `내비가 도착 뒤 목적지를 지워도 P 에 놓을 때 하차 알림을 새로 만들거나 다시 말하지 않는다`() {
+        val arrived = parked().withOffice().navi(3000)
+            .onGear(Reading.Value(Gear.DRIVE), now)
+            .say("나 오늘 보고서류 가져왔어 챙기라고 해줘")
+            .navi(400).navi(30).onNaviArrived(now)
+            .check("r:텀블러")
+
+        // 내비가 안내를 끝내며 목적지를 지운다(onRouteCancelled · 빈 목적지)
+        val cleared = arrived.onNavi(NaviStatus(), now)
+        assertNull(cleared.trip)
+
+        val stopped = cleared.onGear(Reading.Value(Gear.PARK), now)
+        assertEquals("다시 말하지 않는다", arrived.announcement, stopped.announcement)
+        val list = stopped.report().checklist!!
+        assertEquals("회사에 도착했어요", list.title)
+        assertEquals(listOf("텀블러", "사원증", "지갑", "보고서류"), list.rows.map { it.item })
+        assertEquals("챙김 표시도 그대로", 1, list.done)
+    }
+
+    @Test
+    fun `동승자만 내려 준 뒤 P 에 놓으면 내 물건을 같은 목록에 더하고 그것만 말한다`() {
+        val dropped = parked()
+            .onSeat(Seat.PASSENGER, Reading.Value(true), now)
+            .namePassenger(Seat.PASSENGER, "민수")
+            .say("민수 가방 챙기라고 해줘")
+            .say("나 오늘 보고서류 가져왔어 챙기라고 해줘")
+            .onGear(Reading.Value(Gear.DRIVE), now)
+            // D 에 둔 채 길가에서 내려 준다
+            .onSeat(Seat.PASSENGER, Reading.Value(false), now)
+        assertEquals("민수님, 가방 챙기세요.", dropped.announcement!!.text)
+
+        val stopped = dropped.onGear(Reading.Value(Gear.PARK), now)
+        assertEquals(listOf("가방", "보고서류"), stopped.report().checklist!!.rows.map { it.item })
+        assertEquals("보고서류 챙기세요.", stopped.announcement!!.text)
+    }
+
+    @Test
     fun `내비 도착 알림이 없어도 도착 직전 뒤 P 에 놓으면 도착`() {
         val arrived = parked().withOffice().navi(3000)
             .onGear(Reading.Value(Gear.DRIVE), now).navi(200)

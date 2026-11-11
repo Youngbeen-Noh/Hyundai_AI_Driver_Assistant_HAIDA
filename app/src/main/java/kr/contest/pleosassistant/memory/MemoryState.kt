@@ -248,7 +248,8 @@ fun dueBelongings(belongings: List<Belonging>, today: LocalDate): List<Belonging
  * 변속 단이 바뀜.
  * - P 에서 출발하면: 내비 목적지가 있으면 늘 챙길 것을 확인한다
  * - 주행(D · R · N)하다가 P 에 놓으면: 내비로 가는 중이면 도착 직전 이후일 때만 도착으로 보고(가는 길에 잠깐 선 것은 아님),
- *   내비 없이 다니면 하차로 보고 챙길 물건을 알린다
+ *   내비 없이 다니면 하차로 보고 챙길 물건을 알린다. 이때 체크 목록이 이미 열려 있으면(달리는 중에 온 내비 도착 알림 뒤
+ *   내비가 목적지를 지운 경우, D 에서 동승자를 내려 준 경우) 새로 만들지 않고 목록에 없는 것만 더해 그것만 말한다
  * 앱을 켤 때 이미 P 였던 것은 하차로 치지 않는다. 잠깐 값을 못 읽어도 마지막 단을 기억한다.
  * 체크 목록에 답하지 않고 P 에서 출발하면 "나중에"로 닫는다(주행 중에는 체크 목록을 띄우지 않는다).
  * 챙긴 물건은 누를 때 이미 지웠고, 남은 물건은 다음 하차 때 다시 알린다.
@@ -267,12 +268,17 @@ fun MemoryState.onGear(reading: Reading<Gear>, now: LocalDateTime): MemoryState 
         val nearby = TripMoment.APPROACHING in t.said || t.approaching
         return if (nearby && TripMoment.ARRIVED !in t.said) next.arrive(now) else next
     }
-    // 내비 없이 다닐 때: 매일 챙길 것 + 오늘 챙길 물건
-    val items = next.checklist(now)
-    if (items.isEmpty()) return next
-    val daily = dailyItems(data.routines).takeIf { it.isNotEmpty() }?.let { "${it.joinToString(", ")} 챙기세요." }
-    val due = dueBelongings(data.belongings, now.toLocalDate()).takeIf { it.isNotEmpty() }?.let(::arrivalMessage)
-    return next.copy(arrival = Arrival(MemoryMessages.ARRIVED_TITLE, items)).announce(TAG_ARRIVE, listOfNotNull(daily, due).joinToString(" "))
+    // 내비 없이 다닐 때(또는 내비가 도착 뒤 목적지를 지웠을 때): 매일 챙길 것 + 오늘 챙길 물건.
+    // 이미 열린 체크 목록(달리는 중에 온 내비 도착 알림, D 에서 내려 준 동승자)이 있으면 그 목록에 없는 것만 더하고 그것만 말한다.
+    val open = next.arrival
+    val fresh = next.checklist(now).filterNot { item -> open?.items?.any { it.key == item.key } == true }
+    if (fresh.isEmpty()) return next
+    val daily = fresh.filter { it.belongingId == null }.map { it.item }
+        .takeIf { it.isNotEmpty() }?.let { "${it.joinToString(", ")} 챙기세요." }
+    val due = dueBelongings(data.belongings, now.toLocalDate()).filter { b -> fresh.any { it.belongingId == b.id } }
+        .takeIf { it.isNotEmpty() }?.let(::arrivalMessage)
+    val arrival = open?.copy(items = open.items + fresh) ?: Arrival(MemoryMessages.ARRIVED_TITLE, fresh)
+    return next.copy(arrival = arrival).announce(TAG_ARRIVE, listOfNotNull(daily, due).joinToString(" "))
 }
 
 /**
