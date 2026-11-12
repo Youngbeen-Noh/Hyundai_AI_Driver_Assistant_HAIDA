@@ -11,5 +11,14 @@
                 <action android:name="kr.contest.pleosassistant.DEBUG_MUSIC" />
             </intent-filter>
         </receiver>
+        <!-- 기능 5: 운전석 안전벨트 미착용 경고 -->
+        <receiver
+            android:name=".DriveDebugReceiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP">
+            <intent-filter>
+                <action android:name="kr.contest.pleosassistant.DEBUG_DRIVE" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>

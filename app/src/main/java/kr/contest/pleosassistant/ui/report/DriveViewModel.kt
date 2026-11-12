@@ -18,9 +18,14 @@ import kotlinx.coroutines.launch
 import kr.contest.pleosassistant.drive.DriveReport
 import kr.contest.pleosassistant.drive.DriveState
 import kr.contest.pleosassistant.drive.DriveStore
+import kr.contest.pleosassistant.drive.DriveTestSignals
 import kr.contest.pleosassistant.drive.buildDriveReport
 import kr.contest.pleosassistant.drive.dismissFinished
+import kr.contest.pleosassistant.drive.onBeltWarning
 import kr.contest.pleosassistant.drive.onGear
+import kr.contest.pleosassistant.drive.onSteering
+import kr.contest.pleosassistant.status.Reading
+import kr.contest.pleosassistant.vehicle.DriverSignalSource
 import kr.contest.pleosassistant.drive.onSpeed
 import kr.contest.pleosassistant.vehicle.CabinSource
 import kr.contest.pleosassistant.vehicle.SpeedSource
@@ -33,11 +38,12 @@ interface DriveActions {
 
 /**
  * 기능 5 · 주행 리포트. 하차 리포트가 어느 탭에서든 뜨도록 Activity 범위로 둔다.
- * 변속 단 · 차속 신호를 [DriveState] 로 흘려 보내고, 주행 기록(data)이 바뀔 때마다 기기 안에 저장한다.
+ * 변속 단 · 차속 · 운전대 각도 · 안전벨트 신호를 [DriveState] 로 흘려 보내고, 주행 기록(data)이 바뀔 때마다 기기 안에 저장한다.
  */
 class DriveViewModel(
     private val speed: SpeedSource,
     private val cabin: CabinSource,
+    private val driver: DriverSignalSource,
     private val store: DriveStore,
     private val now: () -> LocalDateTime = LocalDateTime::now,
 ) : ViewModel(), DriveActions {
@@ -62,11 +68,19 @@ class DriveViewModel(
         viewModelScope.launch {
             speed.samples.collect { s -> state.update { it.onSpeed(s.kmh, s.t, now()) } }
         }
+        viewModelScope.launch {
+            driver.steering.collect { s -> state.update { it.onSteering(s.deg, now()) } }
+        }
+        viewModelScope.launch {
+            combine(driver.beltWarning, DriveTestSignals.beltWarning) { r, test -> test ?: ((r as? Reading.Value)?.value == true) }
+                .collect { on -> state.update { it.onBeltWarning(on) } }
+        }
         viewModelScope.launch(Dispatchers.IO) {
             state.map { it.data }.distinctUntilChanged().drop(1).collect(store::save)
         }
         speed.start()
         cabin.start()
+        driver.start()
     }
 
     /** 차속 권한을 받은 뒤 다시 시작한다 */
@@ -76,5 +90,6 @@ class DriveViewModel(
 
     override fun onCleared() {
         speed.stop()
+        driver.stop()
     }
 }

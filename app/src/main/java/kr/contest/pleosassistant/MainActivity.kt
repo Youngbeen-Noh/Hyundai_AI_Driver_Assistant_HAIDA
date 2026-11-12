@@ -28,6 +28,7 @@ import kr.contest.pleosassistant.vehicle.AndroidLocationSource
 import kr.contest.pleosassistant.vehicle.CarExteriorSource
 import kr.contest.pleosassistant.vehicle.CarSpeedSource
 import kr.contest.pleosassistant.vehicle.PleosCabinSource
+import kr.contest.pleosassistant.vehicle.PleosDriverSignalSource
 import kr.contest.pleosassistant.vehicle.PleosVehicleStatusSource
 import kr.contest.pleosassistant.voice.PleosSpeaker
 import java.io.File
@@ -74,6 +75,7 @@ class MainActivity : ComponentActivity() {
                 DriveViewModel(
                     speed = CarSpeedSource(haida),
                     cabin = cabin,
+                    driver = PleosDriverSignalSource(haida.vehicle),
                     store = FileDriveStore(File(haida.noBackupFilesDir, "drive.json")),
                 )
             }
