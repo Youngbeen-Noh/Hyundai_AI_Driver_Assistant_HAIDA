@@ -11,12 +11,15 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import kr.contest.pleosassistant.briefing.DemoBriefings
 import kr.contest.pleosassistant.music.LocalLibrary
 import kr.contest.pleosassistant.music.MediaAppPlayer
 import kr.contest.pleosassistant.music.OpenMeteoWeatherSource
+import kr.contest.pleosassistant.storage.FileBriefingStore
 import kr.contest.pleosassistant.storage.FileMemoryStore
 import kr.contest.pleosassistant.storage.FileMusicStore
 import kr.contest.pleosassistant.ui.HaidaApp
+import kr.contest.pleosassistant.ui.briefing.BriefingViewModel
 import kr.contest.pleosassistant.ui.common.HaidaTheme
 import kr.contest.pleosassistant.ui.memory.MemoryViewModel
 import kr.contest.pleosassistant.ui.music.MusicViewModel
@@ -65,6 +68,19 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private val briefingViewModel: BriefingViewModel by viewModels {
+        viewModelFactory {
+            initializer {
+                val app = application as HaidaApplication
+                BriefingViewModel(
+                    source = DemoBriefings,
+                    store = FileBriefingStore(File(app.noBackupFilesDir, "briefing.json")),
+                    speaker = PleosSpeaker(app),
+                )
+            }
+        }
+    }
+
     /** 실행 중에 받아야 하는 권한: 대략 위치(기능 3 날씨) */
     private val runtimePermissions = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {}
 
@@ -80,7 +96,8 @@ class MainActivity : ComponentActivity() {
                 val memory by memoryViewModel.report.collectAsStateWithLifecycle()
                 val driving by memoryViewModel.driving.collectAsStateWithLifecycle()
                 val music by musicViewModel.ui.collectAsStateWithLifecycle()
-                HaidaApp(report, memory, driving, memoryViewModel, music, musicViewModel)
+                val briefing by briefingViewModel.ui.collectAsStateWithLifecycle()
+                HaidaApp(report, memory, driving, memoryViewModel, music, musicViewModel, briefing, briefingViewModel)
             }
         }
     }
