@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- 디버그 빌드에만: 에뮬레이터에서 adb 로 신호를 넣어 보는 수신기. DUMP 권한이 있는 adb shell 만 보낼 수 있다 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <application>
+    <!-- 기능 4: 에뮬레이터에서 내 PC 의 브리핑 서버(http://localhost:8787, adb reverse)를 부를 수 있게 그 주소만 http 허용 -->
+    <application android:networkSecurityConfig="@xml/network_security_config">
         <!-- 기능 3: 분위기 신호(시간 · 날씨 · 와이퍼 · 전조등 · 정체) -->
         <receiver
             android:name=".MusicDebugReceiver"

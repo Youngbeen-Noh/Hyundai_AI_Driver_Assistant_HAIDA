@@ -1,0 +1,4 @@
+# 이 파일을 .dev.vars 로 복사해 값을 넣는다(.dev.vars 는 git 에 올라가지 않는다)
+ANTHROPIC_API_KEY=
+# 앱의 secrets.properties BRIEFING_APP_TOKEN 과 같은 아무 긴 값
+APP_TOKEN=

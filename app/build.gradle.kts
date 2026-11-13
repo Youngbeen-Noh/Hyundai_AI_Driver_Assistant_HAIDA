@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -8,6 +10,11 @@ val targetAndroidSdk = 35
 val appVersionMajor = 0
 val appVersionMinor = 1
 val appVersionPatch = 0
+
+// 비밀 · 개인 값은 저장소 루트 secrets.properties(git 제외)에 둔다. 없으면 빈 값으로 빌드된다(CI 포함)
+val secrets = Properties().apply {
+    rootProject.file("secrets.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }
+}
 
 android {
     // TODO(공모전 제출 전): 앱 이름이 정해지면 namespace / applicationId 를 바꾼다.
@@ -24,6 +31,10 @@ android {
         // Pleos 샘플 앱과 같은 규칙: targetSdk * 1,000,000 + major * 10,000 + minor * 100 + patch
         versionCode = targetAndroidSdk * 1_000_000 + appVersionMajor * 10_000 + appVersionMinor * 100 + appVersionPatch
         versionName = "$appVersionMajor.$appVersionMinor.$appVersionPatch"
+
+        // 기능 4: 브리핑 서버(server/) 주소와 앱 토큰. 비어 있으면 시연용 브리핑을 쓴다
+        buildConfigField("String", "BRIEFING_SERVER_URL", "\"${secrets.getProperty("BRIEFING_SERVER_URL", "")}\"")
+        buildConfigField("String", "BRIEFING_APP_TOKEN", "\"${secrets.getProperty("BRIEFING_APP_TOKEN", "")}\"")
     }
 
     buildTypes {
@@ -42,6 +53,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
