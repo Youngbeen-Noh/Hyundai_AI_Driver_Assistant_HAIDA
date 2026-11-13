@@ -24,3 +24,6 @@ dependencyResolutionManagement {
 
 rootProject.name = "PleosAiAssistant"
 include(":app")
+// 테스트용 가짜 멜론(에뮬레이터에 멜론이 없어 음악 앱 연결을 확인하려고). 차량에 올리지 않는다
+include(":fake-melon")
+project(":fake-melon").projectDir = file("tools/fake-melon")

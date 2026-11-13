@@ -163,7 +163,8 @@ private fun NowPlaying(ui: MusicUi, actions: MusicActions, modifier: Modifier) {
 private fun linkText(app: MusicApp, link: PlayerLink): String = when (link) {
     PlayerLink.Local -> "앱에 든 데모 곡 · 직접 만든 곡이라 무료"
     PlayerLink.Connecting -> "${app.label}에 연결하는 중"
-    is PlayerLink.Connected -> "${app.label}에서 재생" + (link.nowPlaying?.let { " · 지금 $it" } ?: "")
+    is PlayerLink.Connected -> link.notFound?.let { "${app.label}에서 '$it' 곡을 찾지 못했어요 · 다음 곡을 눌러 주세요" }
+        ?: ("${app.label}에서 재생" + (link.nowPlaying?.let { " · 지금 $it" } ?: ""))
     PlayerLink.NotInstalled -> "${app.label} 앱이 없어요 · 목록만 보여 드려요"
     PlayerLink.Refused -> "${app.label}이 연결을 받지 않아요 · 음악 앱에서 직접 골라 주세요"
 }
@@ -186,7 +187,8 @@ private fun UpNext(next: List<Track>, mood: Mood, app: MusicApp, actions: MusicA
                         Text(t.title, style = HaidaType.bodySemi, color = c.t1, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(t.artist, style = HaidaType.small, color = c.t3, maxLines = 1)
                     }
-                    Text(time(t.durationSec), style = HaidaType.small, color = c.t3)
+                    // 음악 앱 곡은 길이를 모른다(0)
+                    if (t.durationSec > 0) Text(time(t.durationSec), style = HaidaType.small, color = c.t3)
                 }
             }
             Spacer(Modifier.weight(1f))

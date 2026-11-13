@@ -58,6 +58,8 @@ dependencies {
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
+    // 기능 3: 음악 앱(멜론 등) 연결 · 앱 안 검색
+    implementation(libs.androidx.media)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(platform(libs.androidx.compose.bom))
