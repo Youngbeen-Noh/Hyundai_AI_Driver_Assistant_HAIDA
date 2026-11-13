@@ -42,6 +42,9 @@ import kr.contest.pleosassistant.ui.common.Haida
 import kr.contest.pleosassistant.ui.common.HaidaButton
 import kr.contest.pleosassistant.ui.common.HaidaIcons
 import kr.contest.pleosassistant.ui.common.HaidaType
+import kr.contest.pleosassistant.ui.briefing.BriefingActions
+import kr.contest.pleosassistant.ui.briefing.BriefingScreen
+import kr.contest.pleosassistant.ui.briefing.BriefingUi
 import kr.contest.pleosassistant.ui.hazard.HazardActions
 import kr.contest.pleosassistant.ui.hazard.HazardScreen
 import kr.contest.pleosassistant.ui.memory.MemoryActions
@@ -59,6 +62,7 @@ private enum class Destination(val label: String, val icon: ImageVector) {
     PEOPLE("동승", HaidaIcons.People),
     MUSIC("음악", HaidaIcons.Music),
     HAZARD("구간", HaidaIcons.Pin),
+    NEWS("브리핑", HaidaIcons.News),
 }
 
 /**
@@ -74,6 +78,8 @@ fun HaidaApp(
     musicActions: MusicActions,
     hazard: HazardReport,
     hazardActions: HazardActions,
+    briefing: BriefingUi,
+    briefingActions: BriefingActions,
 ) {
     var current by rememberSaveable { mutableStateOf(Destination.CAR) }
     // 하차 알림: 동승 화면에서는 체크 목록으로, 다른 화면에서는 아래 비서 패널로 띄운다
@@ -85,13 +91,14 @@ fun HaidaApp(
     Row(modifier = Modifier.fillMaxSize().background(Haida.colors.l0)) {
         Dock(
             current = current,
-            // 다른 화면에 있을 때 차에 주의할 것이 있거나, 동승 화면이 답을 기다리면(누가 탔는지 · 하차 확인) 점으로 알린다
+            // 다른 화면에 있을 때 차에 주의할 것이 있거나, 동승 화면이 답을 기다리면(누가 탔는지 · 하차 확인), 브리핑을 듣는 중이면 점으로 알린다
             badge = {
                 when (it) {
                     Destination.CAR -> status.overall.severity > 0
                     Destination.PEOPLE -> memory.question != null || memory.arrivalItems.isNotEmpty()
                     Destination.MUSIC -> false
                     Destination.HAZARD -> hazard.zones.any { it.inside && it.enabled }
+                    Destination.NEWS -> briefing.state.playing
                 }
             },
             onSelect = { current = it },
@@ -106,6 +113,8 @@ fun HaidaApp(
                     // 주행 중 화면(버튼 3개 · 다음 곡 하나)은 변속 단(기능 2 CabinSource)으로 켠다
                     Destination.MUSIC -> MusicScreen(music, driving, actions = musicActions)
                     Destination.HAZARD -> HazardScreen(hazard, hazardActions)
+                    // 주행 중에는 자막을 숨기고 다음 분야만(기능 4)
+                    Destination.NEWS -> BriefingScreen(briefing, driving, actions = briefingActions)
                 }
             }
             if (hazardAlert != null) {
