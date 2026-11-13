@@ -20,6 +20,9 @@
     <!-- 기능 6: 위험 구간 접근 감지. FusedLocation SDK 가 승인되기 전까지 표준 위치로 받는다 -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- 기능 5: 차속(급가속 · 급감속 · 주행 거리). Pleos 에 API 가 없어 AAOS 표준 PERF_VEHICLE_SPEED 로 읽는다(실행 중 권한) -->
+    <uses-permission android:name="android.car.permission.CAR_SPEED" />
+    <uses-permission android:name="pleos.car.permission.CAR_SPEED" />
     <!-- 기능 3: 분위기 보정(와이퍼 → 빗길, 전조등 → 밤길). AAOS 표준 속성으로 읽는다 -->
     <uses-permission android:name="android.car.permission.CAR_EXTERIOR_LIGHTS" />
     <uses-permission android:name="android.car.permission.READ_WINDSHIELD_WIPERS" />

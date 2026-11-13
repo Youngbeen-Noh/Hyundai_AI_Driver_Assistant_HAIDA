@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import kr.contest.pleosassistant.drive.DriveReport
 import kr.contest.pleosassistant.hazard.HazardReport
 import kr.contest.pleosassistant.memory.MemoryReport
 import kr.contest.pleosassistant.status.StatusReport
@@ -52,6 +53,8 @@ import kr.contest.pleosassistant.ui.memory.MemoryScreen
 import kr.contest.pleosassistant.ui.music.MusicActions
 import kr.contest.pleosassistant.ui.music.MusicScreen
 import kr.contest.pleosassistant.ui.music.MusicUi
+import kr.contest.pleosassistant.ui.report.DriveActions
+import kr.contest.pleosassistant.ui.report.ReportScreen
 import kr.contest.pleosassistant.ui.status.VehicleStatusScreen
 
 // 앱 틀: 팀 UI 프로토타입의 왼쪽 메뉴(.dock, 너비 128, 브랜드 연한 색)와 화면 영역(.main).
@@ -62,6 +65,7 @@ private enum class Destination(val label: String, val icon: ImageVector) {
     PEOPLE("동승", HaidaIcons.People),
     MUSIC("음악", HaidaIcons.Music),
     HAZARD("구간", HaidaIcons.Pin),
+    REPORT("리포트", HaidaIcons.Gauge),
     NEWS("브리핑", HaidaIcons.News),
 }
 
@@ -78,15 +82,18 @@ fun HaidaApp(
     musicActions: MusicActions,
     hazard: HazardReport,
     hazardActions: HazardActions,
+    drive: DriveReport,
+    driveActions: DriveActions,
     briefing: BriefingUi,
     briefingActions: BriefingActions,
 ) {
     var current by rememberSaveable { mutableStateOf(Destination.CAR) }
     // 하차 알림: 동승 화면에서는 체크 목록으로, 다른 화면에서는 아래 비서 패널로 띄운다
     val arrival = memory.arrivalMessage?.takeIf { current != Destination.PEOPLE }
-    // 아래 비서 패널에는 한 번에 하나만. 위험 구간 경고가 먼저다(기능계획서 9장 '말하는 순서')
+    // 아래 비서 패널에는 한 번에 하나만: 위험 구간 경고 > 챙길 것 > 주행 점수(기능계획서 9장 '말하는 순서', 물건을 먼저 챙기게)
     val hazardAlert = hazard.alert
-    val panelShown = hazardAlert != null || arrival != null
+    val finished = drive.finished?.takeIf { current != Destination.REPORT }
+    val panelShown = hazardAlert != null || arrival != null || finished != null
 
     Row(modifier = Modifier.fillMaxSize().background(Haida.colors.l0)) {
         Dock(
@@ -98,6 +105,7 @@ fun HaidaApp(
                     Destination.PEOPLE -> memory.question != null || memory.arrivalItems.isNotEmpty()
                     Destination.MUSIC -> false
                     Destination.HAZARD -> hazard.zones.any { it.inside && it.enabled }
+                    Destination.REPORT -> drive.finished != null
                     Destination.NEWS -> briefing.state.playing
                 }
             },
@@ -113,6 +121,7 @@ fun HaidaApp(
                     // 주행 중 화면(버튼 3개 · 다음 곡 하나)은 변속 단(기능 2 CabinSource)으로 켠다
                     Destination.MUSIC -> MusicScreen(music, driving, actions = musicActions)
                     Destination.HAZARD -> HazardScreen(hazard, hazardActions)
+                    Destination.REPORT -> ReportScreen(drive, driveActions)
                     // 주행 중에는 자막을 숨기고 다음 분야만(기능 4)
                     Destination.NEWS -> BriefingScreen(briefing, driving, actions = briefingActions)
                 }
@@ -135,6 +144,16 @@ fun HaidaApp(
                 ) {
                     HaidaButton("다 챙겼어요", onClick = { memoryActions.closeArrival(collected = true) }, kind = ButtonKind.PRIMARY, height = 76.dp)
                     HaidaButton("나중에", onClick = { memoryActions.closeArrival(collected = false) }, height = 76.dp)
+                }
+            } else if (finished != null) {
+                AssistantPanel(
+                    tag = "${finished.score}점",
+                    text = drive.finishedMessage.orEmpty(),
+                    tagIcon = HaidaIcons.Gauge,
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(start = 40.dp, end = 40.dp, bottom = 18.dp),
+                ) {
+                    HaidaButton("자세히", onClick = { current = Destination.REPORT }, height = 76.dp)
+                    HaidaButton("확인", onClick = driveActions::dismissFinished, kind = ButtonKind.PRIMARY, height = 76.dp)
                 }
             }
         }
