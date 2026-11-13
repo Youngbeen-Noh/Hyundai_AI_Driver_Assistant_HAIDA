@@ -174,6 +174,19 @@ class MusicStateTest {
     }
 
     @Test
+    fun `곡 목록이 나중에 생기면 지금 분위기로 다시 고르고 말은 하지 않는다`() {
+        val empty = MusicState.start(emptyList(), MoodSignals(hour = 14, wipersOn = true)).consumeAnnouncement().copy(paused = true)
+        assertNull(empty.current)
+        val filled = empty.withCatalog(catalog)
+        assertEquals(Mood.RAIN, filled.mood)
+        assertEquals(PLAYLIST_SIZE, filled.queue.size)
+        assertTrue(filled.queue.all { it.fit(Mood.RAIN) == 1f })
+        assertNull(filled.announcement)
+        assertTrue(filled.paused)
+        assertEquals(filled.current!!.id, filled.taste.recent.first())
+    }
+
+    @Test
     fun `일시정지는 토글되고 다음 곡으로 넘어가면 다시 재생된다`() {
         val s = MusicState.start(catalog, MoodSignals(hour = 14)).togglePause()
         assertTrue(s.paused)

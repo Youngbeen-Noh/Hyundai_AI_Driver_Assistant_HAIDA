@@ -2,7 +2,7 @@ package kr.contest.pleosassistant.music
 
 /**
  * 곡 하나. 분위기 적합도는 외부 API 에서 받을 수 없어(스포티파이 Audio Features 신규 앱 사용 불가)
- * 우리 쪽에서 붙인 태그다. 지금은 앱에 든 데모 목록([DemoCatalog])을 쓰고, 서버 태그가 생기면 그것으로 바꾼다.
+ * 우리 쪽에서 붙인다: 앱에 든 데모 곡은 소리를 듣고 분석해서([LocalLibrary]), 음악 앱 곡은 나중에 서버 태그로.
  * @property moodFit 분위기별 적합도 0~1. 없는 분위기는 0
  */
 data class Track(
@@ -12,6 +12,10 @@ data class Track(
     val genre: String,
     val moodFit: Map<Mood, Float>,
     val durationSec: Int = 210,
+    /** 앱에 든 데모 곡이면 assets 경로(재생용). 음악 앱으로 넘기는 곡은 null */
+    val assetPath: String? = null,
+    /** 소리를 듣고 잰 값(분위기 분석 결과). 없으면 태그로만 판단한 곡 */
+    val features: kr.contest.pleosassistant.music.analysis.AudioFeatures? = null,
 ) {
     fun fit(mood: Mood): Float = moodFit[mood] ?: 0f
 
