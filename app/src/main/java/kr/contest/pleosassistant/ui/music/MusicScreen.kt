@@ -119,15 +119,18 @@ private fun NowPlaying(ui: MusicUi, actions: MusicActions, modifier: Modifier) {
                 // 앨범 그림은 고정 크기. 높이를 채우게 하면 글자 칸이 밀려 곡 이름이 안 보인다(에뮬레이터 확인)
                 Art(s.mood, 300.dp)
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(track?.title ?: "고를 곡이 없어요", style = HaidaType.hero, color = c.t1, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    val waiting = ui.analyzing?.let { (done, total) -> if (total > 0) "곡 분위기 분석 중 $done/$total" else "곡 분위기 분석 중" }
+                    Text(track?.title ?: waiting ?: "고를 곡이 없어요", style = HaidaType.hero, color = c.t1, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     Text(track?.artist.orEmpty(), style = HaidaType.body, color = c.t2, maxLines = 1)
+                    // 소리를 듣고 잰 값(앱에 든 곡만)
+                    track?.features?.let { Text("곡 분석 · ${it.summary()}", style = HaidaType.small, color = c.t3, maxLines = 2) }
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Icon(HaidaIcons.Music, contentDescription = null, tint = c.t3, modifier = Modifier.size(24.dp))
                         Text(linkText(ui.app, ui.link), style = HaidaType.small, color = c.t3, maxLines = 2)
                     }
                 }
             }
-            if (track != null && ui.link is PlayerLink.ListOnly) {
+            if (track != null && ui.link is PlayerLink.Local) {
                 Column {
                     LevelBar(ui.elapsedSec.toFloat() / track.durationSec, c.ac, Modifier.fillMaxWidth())
                     Row(Modifier.fillMaxWidth().padding(top = 8.dp)) {
@@ -158,7 +161,7 @@ private fun NowPlaying(ui: MusicUi, actions: MusicActions, modifier: Modifier) {
 }
 
 private fun linkText(app: MusicApp, link: PlayerLink): String = when (link) {
-    PlayerLink.ListOnly -> "데모 곡 · 음악 앱 없이 목록만 보여 드려요"
+    PlayerLink.Local -> "앱에 든 데모 곡 · 직접 만든 곡이라 무료"
     PlayerLink.Connecting -> "${app.label}에 연결하는 중"
     is PlayerLink.Connected -> "${app.label}에서 재생" + (link.nowPlaying?.let { " · 지금 $it" } ?: "")
     PlayerLink.NotInstalled -> "${app.label} 앱이 없어요 · 목록만 보여 드려요"

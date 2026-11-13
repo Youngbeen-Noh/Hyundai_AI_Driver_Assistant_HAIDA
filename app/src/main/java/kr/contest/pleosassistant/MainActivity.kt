@@ -12,6 +12,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import kr.contest.pleosassistant.briefing.DemoBriefings
+import kr.contest.pleosassistant.music.LocalLibrary
 import kr.contest.pleosassistant.music.MediaAppPlayer
 import kr.contest.pleosassistant.music.OpenMeteoWeatherSource
 import kr.contest.pleosassistant.storage.FileBriefingStore
@@ -60,6 +61,8 @@ class MainActivity : ComponentActivity() {
                     player = MediaAppPlayer(app),
                     store = FileMusicStore(File(app.noBackupFilesDir, "music.json")),
                     speaker = PleosSpeaker(app),
+                    loadTracks = LocalLibrary(app, File(app.noBackupFilesDir, "music-analysis.json"))::load,
+                    driving = memoryViewModel.driving,
                 )
             }
         }

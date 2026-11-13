@@ -53,6 +53,17 @@ data class MusicState(
 
     fun togglePause(): MusicState = copy(paused = !paused)
 
+    /** 곡 목록이 새로 생겼다(앱에 든 곡 분석이 끝남). 지금 분위기로 다시 고르고 말은 하지 않는다 */
+    fun withCatalog(next: List<Track>): MusicState {
+        val queue = recommend(next, mood, taste)
+        return copy(
+            catalog = next,
+            queue = queue,
+            taste = queue.firstOrNull()?.let(taste::played) ?: taste,
+            announcement = null,
+        )
+    }
+
     fun consumeAnnouncement(): MusicState = copy(announcement = null)
 
     /**
