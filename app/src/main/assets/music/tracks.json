@@ -1,0 +1,168 @@
+{
+  "version": 1,
+  "note": "tools/music-gen 으로 만든 HAIDA 데모 곡. 외부 음원 없음.",
+  "tracks": [
+    {
+      "id": "fresh-0",
+      "file": "music/fresh-0.m4a",
+      "title": "첫 햇살 한 모금",
+      "artist": "하루결",
+      "genre": "어쿠스틱",
+      "durationSec": 60,
+      "intent": "FRESH"
+    },
+    {
+      "id": "fresh-1",
+      "file": "music/fresh-1.m4a",
+      "title": "창문을 열면",
+      "artist": "오렌지 아워",
+      "genre": "시티팝",
+      "durationSec": 60,
+      "intent": "FRESH"
+    },
+    {
+      "id": "fresh-2",
+      "file": "music/fresh-2.m4a",
+      "title": "출발선",
+      "artist": "Nova Lane",
+      "genre": "팝",
+      "durationSec": 60,
+      "intent": "FRESH"
+    },
+    {
+      "id": "drive-0",
+      "file": "music/drive-0.m4a",
+      "title": "풀 스로틀",
+      "artist": "Nova Lane",
+      "genre": "팝",
+      "durationSec": 60,
+      "intent": "DRIVE"
+    },
+    {
+      "id": "drive-1",
+      "file": "music/drive-1.m4a",
+      "title": "네온 하이웨이",
+      "artist": "오렌지 아워",
+      "genre": "시티팝",
+      "durationSec": 60,
+      "intent": "DRIVE"
+    },
+    {
+      "id": "drive-2",
+      "file": "music/drive-2.m4a",
+      "title": "달려라 오늘",
+      "artist": "하루결",
+      "genre": "어쿠스틱",
+      "durationSec": 60,
+      "intent": "DRIVE"
+    },
+    {
+      "id": "cruise-0",
+      "file": "music/cruise-0.m4a",
+      "title": "느린 오후",
+      "artist": "달빛 정원",
+      "genre": "발라드",
+      "durationSec": 60,
+      "intent": "CRUISE"
+    },
+    {
+      "id": "cruise-1",
+      "file": "music/cruise-1.m4a",
+      "title": "바람이 지나는 길",
+      "artist": "하루결",
+      "genre": "어쿠스틱",
+      "durationSec": 60,
+      "intent": "CRUISE"
+    },
+    {
+      "id": "cruise-2",
+      "file": "music/cruise-2.m4a",
+      "title": "해안도로",
+      "artist": "소리결",
+      "genre": "인디",
+      "durationSec": 60,
+      "intent": "CRUISE"
+    },
+    {
+      "id": "rain-0",
+      "file": "music/rain-0.m4a",
+      "title": "비 내리는 퇴근길",
+      "artist": "소리결",
+      "genre": "인디",
+      "durationSec": 60,
+      "intent": "RAIN"
+    },
+    {
+      "id": "rain-1",
+      "file": "music/rain-1.m4a",
+      "title": "와이퍼 박자",
+      "artist": "달빛 정원",
+      "genre": "발라드",
+      "durationSec": 60,
+      "intent": "RAIN"
+    },
+    {
+      "id": "rain-2",
+      "file": "music/rain-2.m4a",
+      "title": "젖은 신호등",
+      "artist": "하루결",
+      "genre": "어쿠스틱",
+      "durationSec": 60,
+      "intent": "RAIN"
+    },
+    {
+      "id": "sunset-0",
+      "file": "music/sunset-0.m4a",
+      "title": "오렌지 하늘",
+      "artist": "오렌지 아워",
+      "genre": "시티팝",
+      "durationSec": 60,
+      "intent": "SUNSET"
+    },
+    {
+      "id": "sunset-1",
+      "file": "music/sunset-1.m4a",
+      "title": "집으로 가는 노을",
+      "artist": "하루결",
+      "genre": "어쿠스틱",
+      "durationSec": 60,
+      "intent": "SUNSET"
+    },
+    {
+      "id": "sunset-2",
+      "file": "music/sunset-2.m4a",
+      "title": "저물녘 드라이브",
+      "artist": "소리결",
+      "genre": "인디",
+      "durationSec": 60,
+      "intent": "SUNSET"
+    },
+    {
+      "id": "night-0",
+      "file": "music/night-0.m4a",
+      "title": "가로등 사이로",
+      "artist": "달빛 정원",
+      "genre": "발라드",
+      "durationSec": 60,
+      "intent": "NIGHT"
+    },
+    {
+      "id": "night-1",
+      "file": "music/night-1.m4a",
+      "title": "조용한 터널",
+      "artist": "소리결",
+      "genre": "인디",
+      "durationSec": 60,
+      "intent": "NIGHT"
+    },
+    {
+      "id": "night-2",
+      "file": "music/night-2.m4a",
+      "title": "별빛 차선",
+      "artist": "Nova Lane",
+      "genre": "팝",
+      "durationSec": 60,
+      "intent": "NIGHT"
+    }
+  ]
+}
