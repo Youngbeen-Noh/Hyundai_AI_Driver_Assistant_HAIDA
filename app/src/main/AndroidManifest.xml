@@ -58,5 +58,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- 기능 3: 스포티파이 로그인(앱 안 WebView). 입력이 있어 주행 중에는 열지 않는다(distractionOptimized 없음) -->
+        <activity
+            android:name=".music.spotify.SpotifyLoginActivity"
+            android:exported="false"
+            android:label="스포티파이 로그인" />
     </application>
 </manifest>
