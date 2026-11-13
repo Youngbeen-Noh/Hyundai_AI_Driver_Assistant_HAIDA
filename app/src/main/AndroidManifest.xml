@@ -17,14 +17,16 @@
     <uses-permission android:name="pleos.car.permission.CAR_SEATS" />
     <!-- 기능 2: 변속 단(P단 = 하차). Vehicle SDK 에 없어 AAOS 표준 CarPropertyManager 로 읽는다(protection: normal) -->
     <uses-permission android:name="android.car.permission.CAR_POWERTRAIN" />
+    <!-- 기능 6: 위험 구간 접근 감지. FusedLocation SDK 가 승인되기 전까지 표준 위치로 받는다 -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <!-- 기능 3: 분위기 보정(와이퍼 → 빗길, 전조등 → 밤길). AAOS 표준 속성으로 읽는다 -->
     <uses-permission android:name="android.car.permission.CAR_EXTERIOR_LIGHTS" />
     <uses-permission android:name="android.car.permission.READ_WINDSHIELD_WIPERS" />
     <!-- 기능 3: 분위기가 바뀌면 이유를 말한다(음성 출력, 차 안 엔진) -->
     <uses-permission android:name="pleos.car.permission.TTS_SERVICE" />
-    <!-- 기능 3: 날씨(Open-Meteo). 위치는 대략(약 1km)만 쓴다 -->
+    <!-- 기능 3: 날씨(Open-Meteo). 위치는 대략(약 1km)만 쓴다(위치 권한은 위 기능 6 과 함께) -->
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <!-- 기능 3: 차량 음악 앱(스포티파이 · 멜론 · 지니)의 미디어 서비스를 찾아 '검색해서 재생'을 요청한다 -->
     <queries>

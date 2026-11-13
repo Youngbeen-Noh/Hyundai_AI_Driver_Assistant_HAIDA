@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import kr.contest.pleosassistant.hazard.HazardReport
 import kr.contest.pleosassistant.memory.MemoryReport
 import kr.contest.pleosassistant.status.StatusReport
 import kr.contest.pleosassistant.ui.common.AssistantPanel
@@ -44,6 +45,8 @@ import kr.contest.pleosassistant.ui.common.HaidaType
 import kr.contest.pleosassistant.ui.briefing.BriefingActions
 import kr.contest.pleosassistant.ui.briefing.BriefingScreen
 import kr.contest.pleosassistant.ui.briefing.BriefingUi
+import kr.contest.pleosassistant.ui.hazard.HazardActions
+import kr.contest.pleosassistant.ui.hazard.HazardScreen
 import kr.contest.pleosassistant.ui.memory.MemoryActions
 import kr.contest.pleosassistant.ui.memory.MemoryScreen
 import kr.contest.pleosassistant.ui.music.MusicActions
@@ -58,6 +61,7 @@ private enum class Destination(val label: String, val icon: ImageVector) {
     CAR("차량", HaidaIcons.Car),
     PEOPLE("동승", HaidaIcons.People),
     MUSIC("음악", HaidaIcons.Music),
+    HAZARD("구간", HaidaIcons.Pin),
     NEWS("브리핑", HaidaIcons.News),
 }
 
@@ -72,12 +76,17 @@ fun HaidaApp(
     memoryActions: MemoryActions,
     music: MusicUi,
     musicActions: MusicActions,
+    hazard: HazardReport,
+    hazardActions: HazardActions,
     briefing: BriefingUi,
     briefingActions: BriefingActions,
 ) {
     var current by rememberSaveable { mutableStateOf(Destination.CAR) }
     // 하차 알림: 동승 화면에서는 체크 목록으로, 다른 화면에서는 아래 비서 패널로 띄운다
     val arrival = memory.arrivalMessage?.takeIf { current != Destination.PEOPLE }
+    // 아래 비서 패널에는 한 번에 하나만. 위험 구간 경고가 먼저다(기능계획서 9장 '말하는 순서')
+    val hazardAlert = hazard.alert
+    val panelShown = hazardAlert != null || arrival != null
 
     Row(modifier = Modifier.fillMaxSize().background(Haida.colors.l0)) {
         Dock(
@@ -88,6 +97,7 @@ fun HaidaApp(
                     Destination.CAR -> status.overall.severity > 0
                     Destination.PEOPLE -> memory.question != null || memory.arrivalItems.isNotEmpty()
                     Destination.MUSIC -> false
+                    Destination.HAZARD -> hazard.zones.any { it.inside && it.enabled }
                     Destination.NEWS -> briefing.state.playing
                 }
             },
@@ -95,18 +105,28 @@ fun HaidaApp(
         )
         Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
             // 비서 패널은 본문을 덮지 않는다: 패널이 뜨면 본문 아래에 패널 자리(높이 + 위아래 간격)를 비운다
-            val bottom = if (arrival != null) AssistantPanelHeight + 18.dp + 16.dp - 24.dp else 0.dp
+            val bottom = if (panelShown) AssistantPanelHeight + 18.dp + 16.dp - 24.dp else 0.dp
             Box(Modifier.fillMaxSize().padding(bottom = bottom)) {
                 when (current) {
                     Destination.CAR -> VehicleStatusScreen(status, driving)
                     Destination.PEOPLE -> MemoryScreen(memory, driving, memoryActions)
                     // 주행 중 화면(버튼 3개 · 다음 곡 하나)은 변속 단(기능 2 CabinSource)으로 켠다
                     Destination.MUSIC -> MusicScreen(music, driving, actions = musicActions)
+                    Destination.HAZARD -> HazardScreen(hazard, hazardActions)
                     // 주행 중에는 자막을 숨기고 다음 분야만(기능 4)
                     Destination.NEWS -> BriefingScreen(briefing, driving, actions = briefingActions)
                 }
             }
-            if (arrival != null) {
+            if (hazardAlert != null) {
+                AssistantPanel(
+                    tag = if (hazardAlert.repeat) "다시 지나요" else "위험 구간",
+                    text = hazardAlert.message,
+                    tagIcon = HaidaIcons.Warn,
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(start = 40.dp, end = 40.dp, bottom = 18.dp),
+                ) {
+                    HaidaButton("알겠어요", onClick = hazardActions::dismissAlert, kind = ButtonKind.PRIMARY, height = 76.dp)
+                }
+            } else if (arrival != null) {
                 AssistantPanel(
                     tag = "도착",
                     text = arrival,

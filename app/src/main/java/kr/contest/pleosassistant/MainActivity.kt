@@ -12,6 +12,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import kr.contest.pleosassistant.briefing.DemoBriefings
+import kr.contest.pleosassistant.storage.FileHazardStore
 import kr.contest.pleosassistant.music.LocalLibrary
 import kr.contest.pleosassistant.music.MediaAppPlayer
 import kr.contest.pleosassistant.music.OpenMeteoWeatherSource
@@ -21,9 +22,11 @@ import kr.contest.pleosassistant.storage.FileMusicStore
 import kr.contest.pleosassistant.ui.HaidaApp
 import kr.contest.pleosassistant.ui.briefing.BriefingViewModel
 import kr.contest.pleosassistant.ui.common.HaidaTheme
+import kr.contest.pleosassistant.ui.hazard.HazardViewModel
 import kr.contest.pleosassistant.ui.memory.MemoryViewModel
 import kr.contest.pleosassistant.ui.music.MusicViewModel
 import kr.contest.pleosassistant.ui.status.VehicleStatusViewModel
+import kr.contest.pleosassistant.vehicle.AndroidLocationSource
 import kr.contest.pleosassistant.vehicle.CarExteriorSource
 import kr.contest.pleosassistant.vehicle.PleosCabinSource
 import kr.contest.pleosassistant.vehicle.PleosVehicleStatusSource
@@ -33,6 +36,9 @@ import java.io.File
 class MainActivity : ComponentActivity() {
 
     private val haida get() = application as HaidaApplication
+
+    // 좌석 · 변속 단 신호는 기능 2(기억)와 기능 6(위험 구간)이 함께 쓴다. 차량 연결을 한 번만 연다
+    private val cabin by lazy { PleosCabinSource(haida.vehicle, haida) }
 
     private val statusViewModel: VehicleStatusViewModel by viewModels {
         viewModelFactory {
@@ -44,8 +50,20 @@ class MainActivity : ComponentActivity() {
         viewModelFactory {
             initializer {
                 MemoryViewModel(
-                    cabin = PleosCabinSource(haida.vehicle, haida),
+                    cabin = cabin,
                     store = FileMemoryStore(File(haida.noBackupFilesDir, "memory.json")),
+                )
+            }
+        }
+    }
+
+    private val hazardViewModel: HazardViewModel by viewModels {
+        viewModelFactory {
+            initializer {
+                HazardViewModel(
+                    location = AndroidLocationSource(haida),
+                    cabin = cabin,
+                    store = FileHazardStore(File(haida.noBackupFilesDir, "hazard.json")),
                 )
             }
         }
@@ -81,12 +99,14 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /** 실행 중에 받아야 하는 권한: 대략 위치(기능 3 날씨) */
-    private val runtimePermissions = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {}
+    /** 실행 중에 받아야 하는 권한: 위치(기능 6 위험 구간 · 기능 3 날씨) */
+    private val runtimePermissions = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        hazardViewModel.onLocationPermissionResult()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val missing = listOf(Manifest.permission.ACCESS_COARSE_LOCATION)
+        val missing = listOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
             .filter { checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
         if (missing.isNotEmpty()) runtimePermissions.launch(missing.toTypedArray())
 
@@ -96,8 +116,9 @@ class MainActivity : ComponentActivity() {
                 val memory by memoryViewModel.report.collectAsStateWithLifecycle()
                 val driving by memoryViewModel.driving.collectAsStateWithLifecycle()
                 val music by musicViewModel.ui.collectAsStateWithLifecycle()
+                val hazard by hazardViewModel.report.collectAsStateWithLifecycle()
                 val briefing by briefingViewModel.ui.collectAsStateWithLifecycle()
-                HaidaApp(report, memory, driving, memoryViewModel, music, musicViewModel, briefing, briefingViewModel)
+                HaidaApp(report, memory, driving, memoryViewModel, music, musicViewModel, hazard, hazardViewModel, briefing, briefingViewModel)
             }
         }
     }
