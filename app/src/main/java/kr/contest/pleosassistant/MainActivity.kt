@@ -69,6 +69,7 @@ class MainActivity : ComponentActivity() {
                     location = AndroidLocationSource(haida),
                     cabin = cabin,
                     store = FileHazardStore(File(haida.noBackupFilesDir, "hazard.json")),
+                    speaker = PleosSpeaker(haida),
                 )
             }
         }

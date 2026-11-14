@@ -26,8 +26,10 @@ import kr.contest.pleosassistant.hazard.removeZone
 import kr.contest.pleosassistant.hazard.setEnabled
 import kr.contest.pleosassistant.hazard.setRadius
 import kr.contest.pleosassistant.hazard.setSchedule
+import kr.contest.pleosassistant.hazard.speechSince
 import kr.contest.pleosassistant.vehicle.CabinSource
 import kr.contest.pleosassistant.vehicle.LocationSource
+import kr.contest.pleosassistant.voice.Speaker
 import java.time.LocalDateTime
 
 /** 화면에서 누르는 것들. 팀 UI 템플릿으로 바꿔도 이 목록은 그대로 쓴다. */
@@ -44,11 +46,13 @@ interface HazardActions {
 /**
  * 기능 6 · 위험 구간. 경고가 어느 탭에서든 뜨도록 Activity 범위로 둔다.
  * 위치 · 변속 단 신호를 [HazardState] 로 흘려 보내고, 구간(data)이 바뀔 때마다 기기 안에 저장한다.
+ * 새 경고는 [speaker] 로 소리 내어 말한다.
  */
 class HazardViewModel(
     private val location: LocationSource,
     private val cabin: CabinSource,
     private val store: HazardStore,
+    private val speaker: Speaker,
     private val now: () -> LocalDateTime = LocalDateTime::now,
 ) : ViewModel(), HazardActions {
 
@@ -67,6 +71,14 @@ class HazardViewModel(
         }
         viewModelScope.launch(Dispatchers.IO) {
             state.map { it.data }.distinctUntilChanged().drop(1).collect(store::save)
+        }
+        // 새 경고를 소리 내어 말한다. 상태가 몰려 와도 마지막으로 본 상태와 비교하므로 놓치거나 두 번 말하지 않는다
+        viewModelScope.launch {
+            var last = state.value
+            state.collect { next ->
+                next.speechSince(last)?.let(speaker::say)
+                last = next
+            }
         }
         location.start()
         cabin.start()
@@ -87,5 +99,6 @@ class HazardViewModel(
 
     override fun onCleared() {
         location.stop()
+        speaker.release()
     }
 }
