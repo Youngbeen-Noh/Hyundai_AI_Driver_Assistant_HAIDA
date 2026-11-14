@@ -27,9 +27,12 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kr.contest.pleosassistant.drive.BELT_GRACE_SEC
+import kr.contest.pleosassistant.drive.DriveEventType
 import kr.contest.pleosassistant.drive.DriveReport
 import kr.contest.pleosassistant.drive.TripSummary
 import kr.contest.pleosassistant.drive.WorstScene
+import kr.contest.pleosassistant.drive.durationText
 import kr.contest.pleosassistant.ui.common.Eyebrow
 import kr.contest.pleosassistant.ui.common.Haida
 import kr.contest.pleosassistant.ui.common.HaidaCard
@@ -160,11 +163,15 @@ private fun SceneCard(trip: TripSummary, worst: WorstScene?, message: String, mo
                     StatusPill("가장 크게 깎인 장면", PillTone.WARN)
                     Text("−${worst.minus}점", style = HaidaType.title, color = c.t1)
                 }
-                Text("${worst.type.label} ${worst.count}회", style = HaidaType.sentence, color = c.t1, modifier = Modifier.padding(top = 8.dp))
-                Text("처음 ${worst.firstAt.format(TIME)} · 10km 당 횟수로 비교해요", style = HaidaType.body, color = c.t2)
+                Text("${worst.label} ${worst.amount}", style = HaidaType.sentence, color = c.t1, modifier = Modifier.padding(top = 8.dp))
+                Text(listOfNotNull(worst.firstAt?.let { "처음 ${it.format(TIME)}" }, worst.basis).joinToString(" · "), style = HaidaType.body, color = c.t2)
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
                     trip.events.takeLast(3).forEach { e ->
-                        Text("${e.at.format(TIME)} · ${e.type.label} · ${e.fromKmh} → ${e.toKmh}km/h", style = HaidaType.small, color = c.t3)
+                        val speed = if (e.type == DriveEventType.HARD_STEER) "${e.fromKmh}km/h 에서" else "${e.fromKmh} → ${e.toKmh}km/h"
+                        Text("${e.at.format(TIME)} · ${e.type.label} · $speed", style = HaidaType.small, color = c.t3)
+                    }
+                    if (trip.unbeltedSec >= BELT_GRACE_SEC) {
+                        Text("안전벨트 미착용 · 움직이는 동안 ${durationText(trip.unbeltedSec)}", style = HaidaType.small, color = c.t3)
                     }
                 }
             }

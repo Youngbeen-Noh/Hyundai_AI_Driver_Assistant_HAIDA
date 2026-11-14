@@ -49,6 +49,7 @@ class FileDriveStore(file: File) : DriveStore {
                         .put("distanceKm", t.distanceKm)
                         .put("movingSec", t.movingSec)
                         .put("steadyRatio", t.steadyRatio)
+                        .put("unbeltedSec", t.unbeltedSec)
                         .put("safety", t.safety)
                         .put("eco", t.eco)
                         .put("score", t.score)
@@ -76,6 +77,7 @@ class FileDriveStore(file: File) : DriveStore {
                     DriveEvent(type, LocalDateTime.parse(e.getString("at")), e.getInt("from"), e.getInt("to"))
                 },
                 steadyRatio = o.getDouble("steadyRatio"),
+                unbeltedSec = o.optInt("unbeltedSec", 0),
                 safety = o.getInt("safety"),
                 eco = o.getInt("eco"),
                 score = o.getInt("score"),
