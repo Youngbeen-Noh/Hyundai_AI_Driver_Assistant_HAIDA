@@ -24,6 +24,7 @@ import kr.contest.pleosassistant.music.MusicState
 import kr.contest.pleosassistant.music.MusicTestSignals
 import kr.contest.pleosassistant.music.PlayerEvent
 import kr.contest.pleosassistant.music.PlayerLink
+import kr.contest.pleosassistant.music.StreamingCatalog
 import kr.contest.pleosassistant.music.Track
 import kr.contest.pleosassistant.music.Weather
 import kr.contest.pleosassistant.music.WeatherSource
@@ -82,6 +83,9 @@ class MusicViewModel(
     private val elapsed = MutableStateFlow(0)
     private val analyzing = MutableStateFlow<Pair<Int, Int>?>(0 to 0)
 
+    /** 앱에 든 데모 곡(분석 결과 포함). 분석이 끝나야 채워진다 */
+    private var localTracks: List<Track>? = null
+
     /** 사용자가 재생 · 일시정지를 직접 눌렀으면 출발할 때 저절로 틀지 않는다 */
     private var userControlled = false
     private var autoStarted = false
@@ -103,7 +107,8 @@ class MusicViewModel(
         viewModelScope.launch {
             val tracks = loadTracks { done, total -> analyzing.value = done to total }
             // 곡을 못 읽으면 소리 없는 시연 목록이라도 보여 준다
-            state.update { it.withCatalog(tracks.ifEmpty { DemoCatalog.tracks }) }
+            localTracks = tracks.ifEmpty { DemoCatalog.tracks }
+            state.update { it.withCatalog(catalogFor(app.value)) }
             analyzing.value = null
         }
         // 처음 출발할 때 저절로 튼다
@@ -203,11 +208,19 @@ class MusicViewModel(
     override fun chooseMood(mood: Mood?) = state.update { it.chooseMood(mood) }
 
     override fun chooseApp(app: MusicApp) {
+        val before = catalogFor(this.app.value)
         this.app.value = app
         persist(settings.copy(app = app))
         player.use(app)
-        state.value.current?.let { player.play(it, start = !state.value.paused) }
+        val next = catalogFor(app)
+        // 데모 곡 ↔ 음악 앱이면 곡 목록이 바뀐다(곡이 바뀌면 위의 수집기가 재생을 요청한다). 음악 앱끼리면 지금 곡을 새 앱에 요청한다
+        if (localTracks != null && next != before) state.update { it.withCatalog(next) }
+        else state.value.current?.let { player.play(it, start = !state.value.paused) }
     }
+
+    /** 데모 곡은 앱에 든 곡, 음악 앱은 실제 곡 목록(데모 곡은 음악 앱에서 검색해도 없다) */
+    private fun catalogFor(app: MusicApp): List<Track> =
+        if (app == MusicApp.DEMO) localTracks.orEmpty() else StreamingCatalog.tracks
 
     private fun persist(next: MusicSettings) {
         settings = next

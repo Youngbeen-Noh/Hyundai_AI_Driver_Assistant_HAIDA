@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.asStateFlow
 enum class MusicApp(val label: String, val packageName: String?) {
     /** 앱에 든 데모 곡을 직접 튼다(tools/music-gen 으로 만든 곡이라 저작권 문제 없음). 공모전 시연 · 음악 앱 연동 전 */
     DEMO("데모 곡", null),
+    /** 스포티파이 Web API 로 사용자의 스포티파이 기기(휴대폰)에서 튼다([kr.contest.pleosassistant.music.spotify.SpotifyPlayer]) */
     SPOTIFY("스포티파이", "com.spotify.music"),
     MELON("멜론", "com.iloen.melon"),
     GENIE("지니", "com.ktmusic.geniemusic"),
@@ -35,12 +36,27 @@ sealed interface PlayerLink {
     /** 데모: 앱에 든 곡을 앱이 직접 튼다 */
     data object Local : PlayerLink
     data object Connecting : PlayerLink
-    /** 연결됨. nowPlaying 은 음악 앱이 알려 준 지금 곡(제목 · 가수) */
-    data class Connected(val nowPlaying: String? = null) : PlayerLink
+    /**
+     * 연결됨. nowPlaying 은 음악 앱이 알려 준 지금 곡(제목 · 가수), device 는 소리가 나는 기기(스포티파이),
+     * notFound 는 음악 앱에서 찾지 못한 곡 제목
+     */
+    data class Connected(val nowPlaying: String? = null, val device: String? = null, val notFound: String? = null) : PlayerLink
     /** 앱이 없거나 미디어 서비스가 없다 */
     data object NotInstalled : PlayerLink
     /** 앱이 우리 앱의 연결을 받아 주지 않았다 → 곡 목록만 보여 주고 사용자가 음악 앱에서 고른다 */
     data object Refused : PlayerLink
+
+    // ---- 스포티파이 Web API ----
+    /** 스포티파이 개발자 앱 Client ID 가 빌드에 없다(secrets.properties) */
+    data object NotConfigured : PlayerLink
+    /** 스포티파이 로그인이 필요하다 */
+    data object NeedsLogin : PlayerLink
+    /** Premium 이 아니라 재생을 시킬 수 없다 */
+    data object NotPremium : PlayerLink
+    /** 켜진 스포티파이 기기(휴대폰 등)가 없다 */
+    data object NoDevice : PlayerLink
+    /** 네트워크 등 그 밖의 오류 */
+    data object Offline : PlayerLink
 }
 
 /** 재생 쪽에서 앱에 알리는 일 */
@@ -72,7 +88,7 @@ interface MusicPlayer {
  * 데모 곡은 앱이 MediaPlayer 로 직접 틀고(오디오 포커스를 받는다), 음악 앱을 고르면
  * 그 앱의 MediaBrowserService 에 붙어 '검색해서 재생'(playFromSearch, 제목 + 가수)을 요청한다.
  * 차량용 미디어 앱은 이 요청을 지원해야 하지만, 다른 앱의 연결을 받을지는 그 앱이 정한다(거절하면 [PlayerLink.Refused]).
- * 스포티파이 Web API(1순위)는 OAuth · Premium 계정이 필요해 다음 PR 에서 붙인다.
+ * 스포티파이는 Web API 로 따로 튼다([AppRouterPlayer] 가 고른다).
  */
 class MediaAppPlayer(private val context: Context) : MusicPlayer {
 
