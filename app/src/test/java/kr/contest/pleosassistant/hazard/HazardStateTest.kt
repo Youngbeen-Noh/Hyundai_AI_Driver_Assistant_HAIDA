@@ -170,6 +170,47 @@ class HazardStateTest {
         assertEquals("지금 100m", r.zones.single().distanceText)
     }
 
+    // ---- 음성 안내 ----
+
+    @Test
+    fun `들어서면 경고 문장을 한 번만 말한다`() {
+        val before = withZone()
+        val entered = before.onPosition(Reading.Value(north(150.0)), morning)
+        assertEquals("200m 앞 아파트 정문이에요. 보행자 조심하세요.", entered.speechSince(before))
+        // 경고 창이 떠 있는 채로 구간 안에서 움직이면 다시 말하지 않는다
+        val moved = entered.onPosition(Reading.Value(north(80.0)), morning)
+        assertNull(moved.speechSince(entered))
+    }
+
+    @Test
+    fun `경고 창을 닫지 않고 같은 날 다시 지나도 짧게 다시 말한다`() {
+        val first = withZone().onPosition(Reading.Value(north(100.0)), morning)
+        val out = first.onPosition(Reading.Value(north(800.0)), morning)
+        assertNull(out.speechSince(first))
+        val again = out.onPosition(Reading.Value(north(100.0)), morning.plusHours(1))
+        assertEquals("다시 아파트 정문이에요.", again.speechSince(out))
+    }
+
+    @Test
+    fun `정차 중 · 알림 끈 구간 · 반경 밖에서는 말하지 않는다`() {
+        val parked = withZone().onGear(Reading.Value(Gear.PARK))
+        assertNull(parked.onPosition(Reading.Value(north(50.0)), morning).speechSince(parked))
+
+        val off = withZone().onGear(Reading.Value(Gear.PARK)).setEnabled(1L, false).onGear(Reading.Value(Gear.DRIVE))
+        assertNull(off.onPosition(Reading.Value(north(50.0)), morning).speechSince(off))
+
+        val driving = withZone()
+        assertNull(driving.onPosition(Reading.Value(north(260.0)), morning).speechSince(driving))
+    }
+
+    @Test
+    fun `경고 창을 닫거나 구간을 지워도 말하지 않는다`() {
+        val entered = withZone().onPosition(Reading.Value(north(100.0)), morning)
+        assertNull(entered.dismissAlert().speechSince(entered))
+        val parked = entered.onGear(Reading.Value(Gear.PARK))
+        assertNull(parked.removeZone(1L).speechSince(parked))
+    }
+
     @Test
     fun `구간이 없으면 저장 방법을 안내한다`() {
         val r = buildHazardReport(HazardState(), morning)
