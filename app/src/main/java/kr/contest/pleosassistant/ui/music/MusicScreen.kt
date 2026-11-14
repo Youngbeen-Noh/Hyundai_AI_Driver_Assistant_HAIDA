@@ -18,6 +18,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import android.content.Intent
+import kr.contest.pleosassistant.music.spotify.SpotifyLoginActivity
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -72,7 +75,7 @@ fun MusicScreen(ui: MusicUi, driving: Boolean, actions: MusicActions, modifier: 
                 if (driving) {
                     NextBig(s.upcoming.firstOrNull(), s.mood, Modifier.weight(640f).fillMaxHeight())
                 } else {
-                    UpNext(s.upcoming, s.mood, ui.app, actions, Modifier.weight(640f).fillMaxHeight())
+                    UpNext(s.upcoming, s.mood, ui.app, ui.link, actions, Modifier.weight(640f).fillMaxHeight())
                 }
             }
         }
@@ -163,14 +166,22 @@ private fun NowPlaying(ui: MusicUi, actions: MusicActions, modifier: Modifier) {
 private fun linkText(app: MusicApp, link: PlayerLink): String = when (link) {
     PlayerLink.Local -> "앱에 든 데모 곡 · 직접 만든 곡이라 무료"
     PlayerLink.Connecting -> "${app.label}에 연결하는 중"
-    is PlayerLink.Connected -> "${app.label}에서 재생" + (link.nowPlaying?.let { " · 지금 $it" } ?: "")
+    is PlayerLink.Connected -> when {
+        link.notFound != null -> "${app.label}에서 '${link.notFound}' 곡을 찾지 못했어요 · 다음 곡을 눌러 주세요"
+        else -> "${app.label}에서 재생" + (link.device?.let { " ($it)" } ?: "") + (link.nowPlaying?.let { " · 지금 $it" } ?: "")
+    }
     PlayerLink.NotInstalled -> "${app.label} 앱이 없어요 · 목록만 보여 드려요"
     PlayerLink.Refused -> "${app.label}이 연결을 받지 않아요 · 음악 앱에서 직접 골라 주세요"
+    PlayerLink.NotConfigured -> "스포티파이 개발자 앱(Client ID)이 아직 설정되지 않았어요 · 목록만 보여 드려요"
+    PlayerLink.NeedsLogin -> "스포티파이에 로그인해 주세요 · 정차 중에 오른쪽 아래 버튼"
+    PlayerLink.NotPremium -> "스포티파이 Premium 이 있어야 재생을 맡길 수 있어요"
+    PlayerLink.NoDevice -> "휴대폰에서 스포티파이를 켜 주세요 · 켜진 기기에서 재생해요"
+    PlayerLink.Offline -> "스포티파이에 연결하지 못했어요 · 잠시 뒤 다시 눌러 주세요"
 }
 
 /** 오른쪽(정차): 다음 4곡 + 재생할 음악 앱 */
 @Composable
-private fun UpNext(next: List<Track>, mood: Mood, app: MusicApp, actions: MusicActions, modifier: Modifier) {
+private fun UpNext(next: List<Track>, mood: Mood, app: MusicApp, link: PlayerLink, actions: MusicActions, modifier: Modifier) {
     val c = Haida.colors
     HaidaCard(modifier = modifier) {
         Column(Modifier.fillMaxSize().padding(32.dp)) {
@@ -186,7 +197,8 @@ private fun UpNext(next: List<Track>, mood: Mood, app: MusicApp, actions: MusicA
                         Text(t.title, style = HaidaType.bodySemi, color = c.t1, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(t.artist, style = HaidaType.small, color = c.t3, maxLines = 1)
                     }
-                    Text(time(t.durationSec), style = HaidaType.small, color = c.t3)
+                    // 음악 앱 곡은 길이를 모른다(0)
+                    if (t.durationSec > 0) Text(time(t.durationSec), style = HaidaType.small, color = c.t3)
                 }
             }
             Spacer(Modifier.weight(1f))
@@ -196,6 +208,16 @@ private fun UpNext(next: List<Track>, mood: Mood, app: MusicApp, actions: MusicA
                 MusicApp.entries.forEach { a ->
                     HaidaChip(a.label, onClick = { actions.chooseApp(a) }, selected = a == app, small = true, height = 60.dp)
                 }
+            }
+            // 스포티파이 로그인(정차 중에만 보이는 화면이다)
+            if (app == MusicApp.SPOTIFY && link == PlayerLink.NeedsLogin) {
+                val context = LocalContext.current
+                HaidaButton(
+                    "스포티파이 로그인",
+                    onClick = { context.startActivity(Intent(context, SpotifyLoginActivity::class.java)) },
+                    kind = ButtonKind.PRIMARY,
+                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                )
             }
         }
     }

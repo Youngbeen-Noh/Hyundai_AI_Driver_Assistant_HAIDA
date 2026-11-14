@@ -15,6 +15,7 @@ import kr.contest.pleosassistant.briefing.DemoBriefings
 import kr.contest.pleosassistant.storage.FileDriveStore
 import kr.contest.pleosassistant.storage.FileHazardStore
 import kr.contest.pleosassistant.music.LocalLibrary
+import kr.contest.pleosassistant.music.AppRouterPlayer
 import kr.contest.pleosassistant.music.MediaAppPlayer
 import kr.contest.pleosassistant.music.OpenMeteoWeatherSource
 import kr.contest.pleosassistant.storage.FileBriefingStore
@@ -91,7 +92,7 @@ class MainActivity : ComponentActivity() {
                 MusicViewModel(
                     exterior = CarExteriorSource(app),
                     weatherSource = OpenMeteoWeatherSource(app),
-                    player = MediaAppPlayer(app),
+                    player = AppRouterPlayer(MediaAppPlayer(app), app.spotifyPlayer),
                     store = FileMusicStore(File(app.noBackupFilesDir, "music.json")),
                     speaker = PleosSpeaker(app),
                     loadTracks = LocalLibrary(app, File(app.noBackupFilesDir, "music-analysis.json"))::load,
