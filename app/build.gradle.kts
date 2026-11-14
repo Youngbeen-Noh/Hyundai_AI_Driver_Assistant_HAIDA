@@ -35,6 +35,8 @@ android {
         // 기능 4: 브리핑 서버(server/) 주소와 앱 토큰. 비어 있으면 시연용 브리핑을 쓴다
         buildConfigField("String", "BRIEFING_SERVER_URL", "\"${secrets.getProperty("BRIEFING_SERVER_URL", "")}\"")
         buildConfigField("String", "BRIEFING_APP_TOKEN", "\"${secrets.getProperty("BRIEFING_APP_TOKEN", "")}\"")
+        // 기능 3: 스포티파이 개발자 앱 Client ID(PKCE 라 비밀 값은 아니지만 개인 앱이라 저장소에 두지 않는다)
+        buildConfigField("String", "SPOTIFY_CLIENT_ID", "\"${secrets.getProperty("SPOTIFY_CLIENT_ID", "")}\"")
     }
 
     buildTypes {
