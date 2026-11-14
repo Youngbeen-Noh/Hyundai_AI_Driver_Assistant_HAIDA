@@ -12,6 +12,7 @@ import kotlin.math.roundToInt
  * - 구간 반경 안에 들어서면 한 번 알린다. 경계에서 흔들려도 다시 울리지 않게 반경 + [EXIT_MARGIN_M] 밖으로 나가야 '나감'으로 본다.
  * - 같은 구간을 같은 날 두 번째부터 지나면 짧게 알린다.
  * - 구간 추가 · 수정은 정차(P) 중에만 한다(기능계획서 9장 '주행 중 편집 입력 없음').
+ * - 새 경고는 음성으로도 한 번 말한다([speechSince], 기능계획서 8장 '들어가기 직전에 짧게 안내한다').
  */
 data class HazardState(
     val data: HazardData = HazardData(),
@@ -20,6 +21,8 @@ data class HazardState(
     /** 지금 안에 있는 구간 id */
     val inside: Set<Long> = emptySet(),
     val alert: HazardAlert? = null,
+    /** 지금까지 낸 경고 수. 같은 문장의 경고가 다시 나와도 새 경고인지 가린다 */
+    val alertCount: Int = 0,
     /** 저장 결과 같은 짧은 안내 */
     val notice: String? = null,
 )
@@ -83,9 +86,17 @@ fun HazardState.onPosition(reading: Reading<GeoPoint>, now: LocalDateTime): Haza
         position = reading,
         inside = nowInside,
         alert = alert,
+        alertCount = alertCount + 1,
         data = data.copy(passes = data.passes + (entered.id to Pass(today, before + 1))),
     )
 }
+
+/**
+ * [before] 뒤에 새로 낸 경고가 있으면 소리 내어 말할 문장. 없으면 null.
+ * 화면 경고와 같은 문장을 쓰고, 같은 경고는 한 번만 말한다(경고 창이 떠 있는 동안 위치가 바뀌어도 다시 말하지 않는다).
+ */
+fun HazardState.speechSince(before: HazardState): String? =
+    alert?.takeIf { alertCount != before.alertCount }?.message
 
 fun HazardState.addZone(name: String, radiusM: Int, schedule: AlertSchedule, now: LocalDateTime): HazardState {
     if (!canEdit) return copy(notice = "정차(P)하면 구간을 저장할 수 있어요")
