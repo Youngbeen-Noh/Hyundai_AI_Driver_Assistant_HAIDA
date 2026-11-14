@@ -17,7 +17,7 @@ val secrets = Properties().apply {
 }
 
 android {
-    // TODO(공모전 제출 전): 앱 이름이 정해지면 namespace / applicationId 를 바꾼다.
+    // 앱 이름은 HAIDA 로 정했다(2026-11-15). 패키지명은 adb 명령 · 디버그 수신기 · 스포티파이 리디렉트가 모두 기대고 있어 그대로 둔다.
     namespace = "kr.contest.pleosassistant"
     compileSdk = targetAndroidSdk
     // AAOS 표준 Car API(CarPropertyManager). 기능 2 의 변속 단(P단)은 Vehicle SDK 에 없어서, 기능 3 의 와이퍼 · 전조등은 표준 속성이라 이것으로 읽는다.
@@ -36,8 +36,23 @@ android {
         buildConfigField("String", "SPOTIFY_CLIENT_ID", "\"${secrets.getProperty("SPOTIFY_CLIENT_ID", "")}\"")
     }
 
+    // 제출용 release 서명. 키 정보는 secrets.properties 에만 둔다(RELEASE_STORE_FILE · RELEASE_STORE_PASSWORD · RELEASE_KEY_ALIAS · RELEASE_KEY_PASSWORD).
+    // 없으면(CI · 다른 팀원) debug 키로 서명해 release 도 설치 · 실행은 되게 한다.
+    val releaseStore = secrets.getProperty("RELEASE_STORE_FILE")?.let { rootProject.file(it) }?.takeIf { it.exists() }
+    signingConfigs {
+        if (releaseStore != null) {
+            create("release") {
+                storeFile = releaseStore
+                storePassword = secrets.getProperty("RELEASE_STORE_PASSWORD")
+                keyAlias = secrets.getProperty("RELEASE_KEY_ALIAS")
+                keyPassword = secrets.getProperty("RELEASE_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig = if (releaseStore != null) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }

@@ -7,6 +7,8 @@ build/
 .externalNativeBuild/
 .cxx/
 *.apk
+# 공모전 제출용 release APK 만 올린다(규정: 저장소 apk/ 폴더)
+!/apk/*_release.apk
 *.aab
 
 # IDE
