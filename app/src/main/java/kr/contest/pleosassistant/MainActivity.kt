@@ -12,6 +12,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import kr.contest.pleosassistant.briefing.DemoBriefings
+import kr.contest.pleosassistant.briefing.ServerBriefingSource
 import kr.contest.pleosassistant.storage.FileDriveStore
 import kr.contest.pleosassistant.storage.FileHazardStore
 import kr.contest.pleosassistant.music.LocalLibrary
@@ -110,7 +111,16 @@ class MainActivity : ComponentActivity() {
             initializer {
                 val app = application as HaidaApplication
                 BriefingViewModel(
-                    source = DemoBriefings,
+                    // 브리핑 서버 주소가 있으면 실제 뉴스(Claude 웹 검색), 없으면 시연용 브리핑
+                    source = if (BuildConfig.BRIEFING_SERVER_URL.isNotBlank()) {
+                        ServerBriefingSource(
+                            BuildConfig.BRIEFING_SERVER_URL.trimEnd('/'),
+                            BuildConfig.BRIEFING_APP_TOKEN,
+                            File(app.noBackupFilesDir, "briefing-cache.json"),
+                        )
+                    } else {
+                        DemoBriefings
+                    },
                     store = FileBriefingStore(File(app.noBackupFilesDir, "briefing.json")),
                     speaker = PleosSpeaker(app),
                 )

@@ -1,6 +1,6 @@
 package kr.contest.pleosassistant.briefing
 
-/** 브리핑을 만들어 주는 곳. 서버(네이버 뉴스 검색 + LLM 대본)가 생기기 전에는 [DemoBriefings] */
+/** 브리핑을 만들어 주는 곳. 브리핑 서버(Claude 웹 검색 + 대본)는 [ServerBriefingSource], 서버 설정이 없으면 [DemoBriefings] */
 fun interface BriefingSource {
     /** [category] 의 새 브리핑. 만들 수 없으면 null. [seq] 는 같은 분야의 몇 번째 요청인지 */
     fun briefing(category: Category, seq: Int): Briefing?
@@ -65,6 +65,13 @@ data class BriefingState(
             attempts++
         }
         return s
+    }
+
+    /** 큐를 채울 때 차례로 요청할 분야(미리 받아 두는 출처가 준비할 것) */
+    fun upcomingCategories(): List<Category> {
+        val cats = settings.selected
+        if (cats.isEmpty()) return emptyList()
+        return (0 until (QUEUE_SIZE - queue.size).coerceAtLeast(0)).map { cats[(rotation + it) % cats.size] }
     }
 
     /** 브리핑을 시작한다(이미 읽는 중이면 그대로) */

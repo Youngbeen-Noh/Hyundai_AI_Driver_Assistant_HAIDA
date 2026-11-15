@@ -1,0 +1,7 @@
+# 기능 4 브리핑 서버. 로컬: npm run dev (http://localhost:8787), 배포: npm run deploy
+name = "haida-briefing"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+compatibility_flags = ["nodejs_compat"]
+
+# 비밀 값은 여기에 쓰지 않는다. 로컬은 .dev.vars, 배포는 `npx wrangler secret put ANTHROPIC_API_KEY` / `APP_TOKEN`

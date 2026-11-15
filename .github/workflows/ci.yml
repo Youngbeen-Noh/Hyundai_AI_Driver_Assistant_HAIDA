@@ -49,3 +49,22 @@ jobs:
             app/build/reports
             app/build/test-results
           retention-days: 7
+
+  # 기능 4 브리핑 서버(server/): 타입 검사 · 단위 테스트. 실제 Claude 호출은 하지 않는다(키 불필요)
+  server:
+    name: server
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test

@@ -7,6 +7,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -18,6 +19,9 @@ import kr.contest.pleosassistant.briefing.BriefingSource
 import kr.contest.pleosassistant.briefing.BriefingState
 import kr.contest.pleosassistant.briefing.BriefingTestSignals
 import kr.contest.pleosassistant.briefing.Category
+import kr.contest.pleosassistant.briefing.DemoBriefings
+import kr.contest.pleosassistant.briefing.NOTE_DEMO
+import kr.contest.pleosassistant.briefing.PreparingBriefingSource
 import kr.contest.pleosassistant.briefing.shouldStartBriefing
 import kr.contest.pleosassistant.briefing.speakSeconds
 import kr.contest.pleosassistant.storage.BriefingPrefs
@@ -32,6 +36,8 @@ data class BriefingUi(
     val progress: Float,
     /** 방금 '용어 설명'으로 보여 줄 풀이(정차 중 화면) */
     val shownTerm: String?,
+    /** 브리핑 출처 상태 한 줄(만드는 중 · 연결 실패 · 시연용). 없으면 null */
+    val sourceNote: String? = null,
 )
 
 interface BriefingActions {
@@ -60,13 +66,18 @@ class BriefingViewModel(
     private val state = MutableStateFlow(BriefingState(prefs.settings).refill(source))
     private val autoStart = MutableStateFlow(prefs.autoStart)
     private val shownTerm = MutableStateFlow<String?>(null)
+    private val preparing = source as? PreparingBriefingSource
+    private val sourceNote: StateFlow<String?> = preparing?.note ?: MutableStateFlow(if (source === DemoBriefings) NOTE_DEMO else null)
+
+    /** 시작하려 했는데 받아 둔 브리핑이 없었다 → 받으면 바로 시작 */
+    private var pendingStart = false
 
     /** 이번 주행에서 이미 자동으로 시작했는지(정차하면 다시 false) */
     private var startedThisDrive = false
     private var lineJob: Job? = null
 
-    val ui: StateFlow<BriefingUi> = combine(state, autoStart, shownTerm) { s, a, t -> BriefingUi(s, a, progressOf(s), t) }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, BriefingUi(state.value, autoStart.value, 0f, null))
+    val ui: StateFlow<BriefingUi> = combine(state, autoStart, shownTerm, sourceNote) { s, a, t, n -> BriefingUi(s, a, progressOf(s), t, n) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, BriefingUi(state.value, autoStart.value, 0f, null, sourceNote.value))
 
     init {
         // 시작 조건
@@ -81,7 +92,23 @@ class BriefingViewModel(
                 val go = shouldStartBriefing(auto, state.value.settings.selected.isNotEmpty(), min ?: 0, dest)
                 if (go && !startedThisDrive && !state.value.playing) {
                     startedThisDrive = true
-                    state.update { it.start(source) }
+                    begin()
+                }
+            }
+        }
+        // 미리 받아 두는 출처(브리핑 서버): 큐가 모자라면 다음 분야를 받아 채운다. 실패하면 점점 길게 쉬었다가 다시
+        if (preparing != null) {
+            viewModelScope.launch {
+                state.map { it.upcomingCategories() }.distinctUntilChanged().collectLatest { needed ->
+                    if (needed.isEmpty()) return@collectLatest
+                    var wait = RETRY_FIRST_MS
+                    while (!preparing.prepare(needed)) {
+                        // 일부라도 받았으면 큐에 넣는다
+                        refillAndMaybeStart()
+                        delay(wait)
+                        wait = (wait * 2).coerceAtMost(RETRY_MAX_MS)
+                    }
+                    refillAndMaybeStart()
                 }
             }
         }
@@ -129,9 +156,24 @@ class BriefingViewModel(
         state.update { it.nextBriefing(source) }
     }
 
-    override fun startNow() = state.update { it.start(source) }
+    override fun startNow() = begin()
+
+    private fun begin() {
+        state.update { it.start(source) }
+        // 받아 둔 브리핑이 없어 시작하지 못했으면, 받는 대로 시작한다
+        pendingStart = !state.value.playing && state.value.settings.selected.isNotEmpty()
+    }
+
+    private fun refillAndMaybeStart() {
+        state.update { it.refill(source) }
+        if (pendingStart && !state.value.playing && state.value.queue.isNotEmpty()) {
+            pendingStart = false
+            state.update { it.start(source) }
+        }
+    }
 
     override fun stop() {
+        pendingStart = false
         lineJob?.cancel()
         speaker.stop()
         state.update { it.stop() }
@@ -170,3 +212,7 @@ class BriefingViewModel(
 
 /** 시작 조건 신호가 바뀐 뒤 이만큼 더 바뀌지 않으면 판단한다 */
 private const val SIGNAL_SETTLE_MS = 800L
+
+/** 브리핑 서버에서 받지 못했을 때 다시 해 보기까지 기다리는 시간(처음 · 최대) */
+private const val RETRY_FIRST_MS = 30_000L
+private const val RETRY_MAX_MS = 10 * 60_000L

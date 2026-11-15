@@ -255,6 +255,7 @@ private fun IdleCard(ui: BriefingUi, driving: Boolean, actions: BriefingActions,
                 style = HaidaType.body,
                 color = c.t2,
             )
+            ui.sourceNote?.let { Text(it, style = HaidaType.small, color = c.t3) }
             Spacer(Modifier.weight(1f))
             Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                 HaidaButton(
@@ -322,6 +323,9 @@ private fun SettingsCard(ui: BriefingUi, actions: BriefingActions, modifier: Mod
                     Text(b.subtopics.first().title, style = HaidaType.small, color = c.t2, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 Separator()
+            }
+            if (s.queue.isEmpty()) {
+                Text(ui.sourceNote ?: "준비된 브리핑이 없어요", style = HaidaType.small, color = c.t3, modifier = Modifier.padding(top = 16.dp))
             }
         }
     }
